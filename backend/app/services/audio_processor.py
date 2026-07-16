@@ -7,6 +7,7 @@ from app.services.tts_service import TextToSpeechService
 from app.services.gemini_service import GeminiService
 from app.database.mongodb import get_database
 from app.config import settings
+from app.models import CallSession
 from datetime import datetime
 
 class AudioProcessor:
@@ -14,28 +15,23 @@ class AudioProcessor:
         self.stt = SpeechToTextService()
         self.tts = TextToSpeechService()
         self.gemini = GeminiService(settings.GEMINI_API_KEY)
-        self.current_session = None
-        self.conversation_buffer = []
+        self.session: CallSession = None
         self.audio_queue = asyncio.Queue()
         self.processing_task = None
         
     async def initialize_session(self, call_sid: str, system_prompt: str):
         """Initialize a new AI session"""
-        self.current_session = {
-            "call_sid": call_sid,
-            "system_prompt": system_prompt,
-            "conversation_history": [],
-            "start_time": datetime.utcnow()
-        }
+        self.session = CallSession(call_sid=call_sid, system_prompt=system_prompt)
         self.gemini.start_chat_session(system_prompt)
+        
+        db = await get_database()
         # Start the background processing task
-        self.processing_task = asyncio.create_task(self._process_audio_queue())
+        self.processing_task = asyncio.create_task(self._process_audio_queue(db))
         
         # Create conversation record in database
-        db = await get_database()
         await db["conversations"].insert_one({
             "call_sid": call_sid,
-            "start_time": datetime.utcnow(),
+            "start_time": self.session.start_time,
             "transcript": [],
             "status": "in_progress"
         })
@@ -44,60 +40,63 @@ class AudioProcessor:
         """Add an audio chunk to the processing queue."""
         await self.audio_queue.put((websocket, audio_base64))
 
-    async def _process_audio_queue(self):
+    async def _process_audio_queue(self, db):
         """Continuously process audio chunks from the queue."""
         while True:
             try:
                 websocket, audio_base64 = await self.audio_queue.get()
                 audio_bytes = base64.b64decode(audio_base64)
-                # Transcribe audio
                 transcript = await self.stt.transcribe_audio(audio_bytes)
                 
-                if transcript and len(transcript.strip()) > 0:
-                    # Store transcript in conversation
-                    await self._store_transcript("caller", transcript)
+                # If user speaks while AI is speaking, interrupt the AI (barge-in)
+                if self.session.is_speaking and self.session.pending_audio_task:
+                    self.session.pending_audio_task.cancel()
+                    self.session.is_speaking = False
+                    print("Barge-in detected. AI speech interrupted.")
+
+                if not transcript or not transcript.strip():
+                    self.audio_queue.task_done()
+                    continue
+
+                await self._store_transcript(db, "caller", transcript)
+                
+                ai_response = await self.gemini.generate_response(
+                    user_message=transcript,
+                    system_prompt=self.session.system_prompt,
+                    conversation_history=self.session.conversation_history
+                )
+                
+                if ai_response.get("response_text"):
+                    await self._store_transcript(db, "ai_agent", ai_response["response_text"])
                     
-                    # Get AI response
-                    ai_response = await self.gemini.generate_response(
-                        user_message=transcript,
-                        system_prompt=self.current_session["system_prompt"],
-                        conversation_history=self.current_session["conversation_history"]
+                    audio_response = await self.tts.text_to_speech(ai_response["response_text"])
+                    
+                    # Create a task to send audio, allowing for interruption
+                    self.session.pending_audio_task = asyncio.create_task(
+                        self._send_audio_response(websocket, audio_response)
                     )
-                    
-                    if ai_response.get("response_text"):
-                        # Store AI response
-                        await self._store_transcript("ai_agent", ai_response["response_text"])
-                        
-                        # Convert to audio
-                        audio_response = await self.tts.text_to_speech(ai_response["response_text"])
-                        
-                        # Send audio back via WebSocket
-                        await self._send_audio_response(websocket, audio_response)
+                    await self.session.pending_audio_task
     
                 self.audio_queue.task_done()
             except asyncio.CancelledError:
                 break # Exit loop when the task is cancelled
             except Exception as e:
                 print(f"Audio processing error: {e}")
+                if not self.audio_queue.empty():
+                    self.audio_queue.task_done() # Ensure queue doesn't get stuck
     
-    async def _store_transcript(self, speaker: str, text: str):
+    async def _store_transcript(self, db, speaker: str, text: str):
         """Store transcript in database and memory"""
         transcript_entry = {
             "speaker": speaker,
             "text": text,
             "timestamp": datetime.utcnow()
         }
-        
-        # Store in memory for context
-        if speaker == "caller":
-            self.current_session["conversation_history"].append({"speaker": "caller", "text": text})
-        else:
-            self.current_session["conversation_history"].append({"speaker": "ai_agent", "text": text})
+        self.session.conversation_history.append(transcript_entry)
         
         # Store in database
-        db = await get_database()
         await db["conversations"].update_one(
-            {"call_sid": self.current_session["call_sid"]},
+            {"call_sid": self.session.call_sid},
             {"$push": {"transcript": transcript_entry}}
         )
     
@@ -111,7 +110,13 @@ class AudioProcessor:
                 "payload": base64.b64encode(audio_data).decode('utf-8')
             }
         }
-        await websocket.send_text(json.dumps(media_response))
+        try:
+            self.session.is_speaking = True
+            await websocket.send_text(json.dumps(media_response))
+        except asyncio.CancelledError:
+            print("Audio playback cancelled.")
+        finally:
+            self.session.is_speaking = False
     
     async def cleanup(self):
         """Clean up session and finalize conversation"""
@@ -123,21 +128,21 @@ class AudioProcessor:
             except asyncio.CancelledError:
                 pass # Task was cancelled as expected
 
-        if self.current_session:
+        if self.session:
             db = await get_database()
             
             # Generate summary
             summary_text = "No conversation to summarize."
-            if len(self.current_session["conversation_history"]) > 0:
+            if len(self.session.conversation_history) > 0:
                 summary_result = await self.gemini.generate_summary(
-                    self.current_session["conversation_history"],
-                    self.current_session["call_sid"]
+                    self.session.conversation_history,
+                    self.session.call_sid
                 )
                 summary_text = summary_result.get("summary", "Summary generation failed.")
             
             # Update conversation status
             await db["conversations"].update_one(
-                {"call_sid": self.current_session["call_sid"]},
+                {"call_sid": self.session.call_sid},
                 {
                     "$set": {
                         "end_time": datetime.utcnow(),
@@ -147,4 +152,4 @@ class AudioProcessor:
                 }
             )
             
-            self.current_session = None
+            self.session = None
