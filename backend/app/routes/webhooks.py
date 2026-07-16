@@ -121,8 +121,8 @@ async def handle_media_stream(websocket: WebSocket):
                 
             elif event_type == 'media':
                 # Process audio chunk
-                audio_data = data['media']['payload']
-                await processor.process_audio_chunk(websocket, audio_data)
+                # Add audio to the queue for background processing
+                await processor.add_audio_chunk_to_queue(websocket, data['media']['payload'])
                 
             elif event_type == 'stop':
                 print(f"Media stream stopped for call: {call_sid}")

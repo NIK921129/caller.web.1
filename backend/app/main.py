@@ -14,6 +14,7 @@ app = FastAPI(
 # --- CORS Configuration ---
 # This allows your Vercel frontend to communicate with your Render backend.
 origins = [
+    "https://callerweb1.vercel.app", # Main Production URL
     "https://callerweb1-git-main-voxerachat-3388s-projects.vercel.app", # Vercel Production URL
     "https://callerweb1-qjr7o58ua-voxerachat-3388s-projects.vercel.app", # Vercel Preview URL
     "http://localhost:8080",  # For local development

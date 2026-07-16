@@ -16,7 +16,8 @@ class AudioProcessor:
         self.gemini = GeminiService(settings.GEMINI_API_KEY)
         self.current_session = None
         self.conversation_buffer = []
-        self.is_processing = False
+        self.audio_queue = asyncio.Queue()
+        self.processing_task = None
         
     async def initialize_session(self, call_sid: str, system_prompt: str):
         """Initialize a new AI session"""
@@ -26,6 +27,9 @@ class AudioProcessor:
             "conversation_history": [],
             "start_time": datetime.utcnow()
         }
+        self.gemini.start_chat_session(system_prompt)
+        # Start the background processing task
+        self.processing_task = asyncio.create_task(self._process_audio_queue())
         
         # Create conversation record in database
         await db_client.get_collection("conversations").insert_one({
@@ -35,17 +39,15 @@ class AudioProcessor:
             "status": "in_progress"
         })
         
-    async def process_audio_chunk(self, websocket: WebSocket, audio_base64: str):
-        """Process an audio chunk and generate AI response"""
-        if self.is_processing:
-            return
-        
-        self.is_processing = True
-        
+    async def add_audio_chunk_to_queue(self, websocket: WebSocket, audio_base64: str):
+        """Add an audio chunk to the processing queue."""
+        await self.audio_queue.put((websocket, audio_base64))
+
+    async def _process_audio_queue(self):
+        """Continuously process audio chunks from the queue."""
         try:
-            # Convert base64 to audio bytes
+            websocket, audio_base64 = await self.audio_queue.get()
             audio_bytes = base64.b64decode(audio_base64)
-            
             # Transcribe audio
             transcript = await self.stt.transcribe_audio(audio_bytes)
             
@@ -69,12 +71,10 @@ class AudioProcessor:
                     
                     # Send audio back via WebSocket
                     await self._send_audio_response(websocket, audio_response)
-                    
-            self.is_processing = False
-            
+
+            self.audio_queue.task_done()
         except Exception as e:
             print(f"Audio processing error: {e}")
-            self.is_processing = False
     
     async def _store_transcript(self, speaker: str, text: str):
         """Store transcript in database and memory"""
@@ -110,6 +110,14 @@ class AudioProcessor:
     
     async def cleanup(self):
         """Clean up session and finalize conversation"""
+        # Stop the background processing task
+        if self.processing_task:
+            self.processing_task.cancel()
+            try:
+                await self.processing_task
+            except asyncio.CancelledError:
+                pass # Task was cancelled as expected
+
         if self.current_session:
             # Update conversation status
             await db_client.get_collection("conversations").update_one(

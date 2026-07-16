@@ -29,6 +29,7 @@ class Dashboard {
         this.modalCloseBtn = document.querySelector('.close-btn');
         this.conversationsBody = document.getElementById('conversations-body');
         this.conversationDetailContainer = document.getElementById('conversation-detail');
+        this.tableContainer = document.querySelector('.conversations');
     }
 
     init() {
@@ -106,6 +107,7 @@ class Dashboard {
     }
 
     async loadConversations(append = false) {
+        this.showLoading();
         try {
             const params = new URLSearchParams({
                 limit: this.limit,
@@ -129,12 +131,21 @@ class Dashboard {
 
         } catch (error) {
             console.error('Error loading conversations:', error);
+            this.showError('Failed to load conversations. Please try again.');
         }
     }
 
     renderConversations(conversations) {
         this.conversationsBody.innerHTML = '';
         
+        if (this.tableContainer.querySelector('.loading-row')) {
+            this.tableContainer.querySelector('.loading-row').remove();
+        }
+        if (this.tableContainer.querySelector('.error-row')) {
+            this.tableContainer.querySelector('.error-row').remove();
+        }
+
+
         if (conversations.length === 0) {
             this.conversationsBody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:40px;">No conversations found</td></tr>';
             return;
@@ -167,12 +178,14 @@ class Dashboard {
     }
 
     async viewConversation(conversationId) {
+        this.conversationDetailContainer.innerHTML = '<p>Loading details...</p>';
+        this.conversationModal.classList.add('active');
         try {
             const data = await api.get(`/conversations/${conversationId}`);
             this.renderConversationDetail(data);
-            this.conversationModal.classList.add('active');
         } catch (error) {
             console.error('Error loading conversation:', error);
+            this.conversationDetailContainer.innerHTML = '<p class="error-message">Failed to load conversation details.</p>';
         }
     }
 
@@ -264,6 +277,16 @@ class Dashboard {
                 func.apply(this, args);
             }, delay);
         };
+    }
+
+    showLoading() {
+        this.conversationsBody.innerHTML = '<tr class="loading-row"><td colspan="6" style="text-align:center;padding:40px;">Loading...</td></tr>';
+        this.loadMoreBtn.style.display = 'none';
+    }
+
+    showError(message) {
+        this.conversationsBody.innerHTML = `<tr class="error-row"><td colspan="6" style="text-align:center;padding:40px;color:red;">${message}</td></tr>`;
+        this.loadMoreBtn.style.display = 'none';
     }
 }
 

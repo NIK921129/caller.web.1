@@ -15,24 +15,26 @@ class GeminiService:
                 "max_output_tokens": 500, # Example, or add to settings
             }
         )
-        self.chat_history = []
+        self.chat = None
+
+    def start_chat_session(self, system_prompt: str, history: List[Dict] = None):
+        """Initializes a new stateful chat session."""
+        # Convert history to Gemini's format
+        gemini_history = []
+        if history:
+            for entry in history:
+                role = "user" if entry["speaker"] == "caller" else "model"
+                gemini_history.append({"role": role, "parts": [entry["text"]]})
+        
+        self.chat = self.model.start_chat(history=gemini_history)
 
     async def generate_response(self, user_message: str, system_prompt: str, conversation_history: List[Dict] = None):
         """Generate AI response using Gemini"""
         try:
-            # Prepare chat session with system prompt
-            chat = self.model.start_chat(history=[])
-            
-            # Add system prompt
-            chat.send_message(f"System: {system_prompt}")
-            
-            # Add conversation history for context
-            if conversation_history:
-                for entry in conversation_history[-5:]:  # Keep last 5 exchanges
-                    chat.send_message(f"{entry['speaker']}: {entry['text']}")
-            
-            # Send user message
-            response = chat.send_message(user_message)
+            if not self.chat:
+                self.start_chat_session(system_prompt, conversation_history)
+
+            response = self.chat.send_message(user_message)
             
             return {
                 "response_text": response.text,
