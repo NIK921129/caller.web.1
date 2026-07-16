@@ -159,10 +159,6 @@ apiRouter.get('/conversations/:id', async (req, res) => {
     }
 });
 
-// TODO: Add PUT /api/v1/prompt endpoint
-
-app.use('/api/v1', apiRouter);
-
 // === TWILIO WEBHOOKS ===
 
 // Main entry point for incoming calls.
@@ -209,6 +205,12 @@ app.post('/handle-no-answer', (req, res) => {
     res.send(twiml.toString());
     console.log(`Generated TwiML for WebSocket stream for call ${callSid}.`);
 });
+
+// Register API and Webhook routes
+app.use('/api/v1', apiRouter);
+
+// The Twilio webhooks are already registered above with app.post()
+
 
 // 6. Start the Server and WebSocket Server
 const server = app.listen(port, host, () => {
@@ -264,14 +266,4 @@ wss.on('connection', (ws) => {
     ws.on('close', () => {
         console.log('WebSocket connection closed.');
     });
-});
-
-    res.type('text/xml');
-    res.send(twiml.toString());
-});
-
-// 6. Start the Server
-app.listen(port, host, () => {
-    console.log(`AI Call Assistant backend is listening on http://${host}:${port}`);
-    console.log('Twilio is configured to listen for incoming calls.');
 });
