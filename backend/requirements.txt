@@ -1,0 +1,9 @@
+fastapi
+uvicorn
+gunicorn
+motor
+python-dotenv
+google-generativeai
+twilio
+pydantic-settings
+python-multipart

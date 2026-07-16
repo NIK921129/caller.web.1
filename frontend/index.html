@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Call Assistant Dashboard</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🤖 AI Call Assistant</h1>
+            <nav>
+                <a href="/" class="active">Dashboard</a>
+                <a href="/settings.html">Settings</a>
+                <a href="/logs.html">Logs</a>
+            </nav>
+        </header>
+        
+        <main>
+            <!-- Stats Cards -->
+            <section class="stats-grid">
+                <div class="stat-card">
+                    <h3>Total Calls</h3>
+                    <p id="total-calls">0</p>
+                </div>
+                <div class="stat-card">
+                    <h3>AI Handled</h3>
+                    <p id="ai-handled">0</p>
+                </div>
+                <div class="stat-card">
+                    <h3>Avg Duration</h3>
+                    <p id="avg-duration">0:00</p>
+                </div>
+                <div class="stat-card">
+                    <h3>Today</h3>
+                    <p id="today-calls">0</p>
+                </div>
+            </section>
+            
+            <!-- Filters -->
+            <section class="filters">
+                <input type="text" id="search-input" placeholder="Search by caller number...">
+                <input type="date" id="date-from">
+                <input type="date" id="date-to">
+                <select id="status-filter">
+                    <option value="all">All Status</option>
+                    <option value="ai_handled">AI Handled</option>
+                    <option value="missed">Missed</option>
+                    <option value="completed">Completed</option>
+                </select>
+                <button id="refresh-btn">🔄 Refresh</button>
+            </section>
+            
+            <!-- Conversation List -->
+            <section class="conversations">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Caller</th>
+                            <th>Date</th>
+                            <th>Duration</th>
+                            <th>Status</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="conversations-body">
+                        <!-- Rows rendered by JavaScript -->
+                    </tbody>
+                </table>
+                <button id="load-more-btn" class="load-more">Load More</button>
+            </section>
+        </main>
+        
+        <!-- Conversation Detail Modal -->
+        <div id="conversation-modal" class="modal hidden">
+            <div class="modal-content">
+                <span class="close-btn">&times;</span>
+                <div id="conversation-detail">
+                    <!-- Rendered by JavaScript -->
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script src="/static/js/api.js"></script>
+    <script src="/static/js/dashboard.js"></script>
+    <script src="/static/js/app.js"></script>
+</body>
+</html>
