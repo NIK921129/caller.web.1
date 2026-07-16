@@ -45,6 +45,6 @@ class APIClient {
 // Create global API instance.
 // In a Vercel environment, you should set the VITE_API_BASE_URL variable.
 // For local development, you can create a .env file with VITE_API_BASE_URL=http://localhost:8000
-const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'https://caller-web-1.onrender.com';
+const apiBaseUrl = ''; // API calls will be relative to the current domain.
 
 const api = new APIClient(`${apiBaseUrl}/api/v1`);
