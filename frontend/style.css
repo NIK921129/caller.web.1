@@ -1,11 +1,11 @@
 :root {
     --primary: #6366f1;
     --primary-dark: #4f46e5;
-    --bg: #f1f5f9;
-    --card-bg: #ffffff;
-    --text-primary: #1e293b;
-    --text-secondary: #64748b;
-    --border: #e2e8f0;
+    --bg: #111827;
+    --card-bg: #1f2937;
+    --text-primary: #f9fafb;
+    --text-secondary: #9ca3af;
+    --border: #374151;
     --shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
     --radius: 12px;
     --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -109,7 +109,12 @@ nav a:hover, nav a.active {
     font-family: var(--font-family);
     flex: 1;
     min-width: 150px;
-    background-color: #fff;
+    background-color: var(--card-bg);
+    color: var(--text-primary);
+}
+
+.filters input::placeholder {
+    color: var(--text-secondary);
 }
 
 .filters button {
@@ -165,7 +170,7 @@ tbody tr:last-child td {
 }
 
 tbody tr:hover {
-    background-color: #f9fafb;
+    background-color: #374151;
 }
 
 .status-badge {
@@ -177,18 +182,18 @@ tbody tr:hover {
 }
 
 .status-ai_handled {
-    background: #dbeafe;
-    color: #1e40af;
+    background: #1e40af;
+    color: #dbeafe;
 }
 
 .status-completed {
-    background: #d1fae5;
-    color: #065f46;
+    background: #065f46;
+    color: #d1fae5;
 }
 
 .status-missed {
-    background: #fee2e2;
-    color: #991b1b;
+    background: #991b1b;
+    color: #fee2e2;
 }
 
 .btn-view {
@@ -209,15 +214,16 @@ tbody tr:hover {
 .load-more {
     width: 100%;
     padding: 1rem;
-    background: var(--bg);
+    background: var(--card-bg);
     border: none;
     cursor: pointer;
     font-weight: 600;
+    color: var(--text-primary);
     transition: background 0.2s;
 }
 
 .load-more:hover {
-    background: #e2e8f0;
+    background: #374151;
 }
 
 /* Modal Styles */
@@ -228,7 +234,7 @@ tbody tr:hover {
     left: 0;
     width: 100%;
     height: 100%;
-    background: rgba(15, 23, 42, 0.5);
+    background: rgba(15, 23, 42, 0.8);
     z-index: 1000;
     align-items: center;
     justify-content: center;
@@ -243,7 +249,7 @@ tbody tr:hover {
 }
 
 .modal-content {
-    background: white;
+    background: var(--card-bg);
     border-radius: var(--radius);
     max-width: 800px;
     width: 95%;
@@ -253,6 +259,7 @@ tbody tr:hover {
     position: relative;
     transform: scale(0.95);
     transition: transform 0.3s ease;
+    border: 1px solid var(--border);
 }
 
 .modal.active .modal-content {
@@ -299,4 +306,18 @@ tbody tr:hover {
     th, td {
         padding: 0.75rem 1rem;
     }
+}
+
+/* Custom scrollbar for modal content */
+.modal-content::-webkit-scrollbar {
+    width: 8px;
+}
+
+.modal-content::-webkit-scrollbar-track {
+    background: var(--bg);
+}
+
+.modal-content::-webkit-scrollbar-thumb {
+    background-color: var(--border);
+    border-radius: 4px;
 }

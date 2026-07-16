@@ -30,7 +30,8 @@ class APIClient {
     }
 }
 
-const apiBaseUrl = ''; // API calls will be relative to the current domain.
+// The full URL of your deployed backend on Render
+const apiBaseUrl = 'https://caller-web-1.onrender.com';
 const api = new APIClient(`${apiBaseUrl}/api/v1`);
 
 class Dashboard {
