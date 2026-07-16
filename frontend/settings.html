@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Settings - AI Call Assistant</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🤖 AI Call Assistant</h1>
+            <nav>
+                <a href="/">Dashboard</a>
+                <a href="/settings.html" class="active">Settings</a>
+                <a href="#">Logs</a>
+            </nav>
+        </header>
+
+        <main>
+            <section class="settings-form">
+                <h2>AI Configuration</h2>
+                <p class="subtitle">Define the personality and instructions for your AI assistant.</p>
+                <textarea id="ai-prompt" placeholder="e.g., You are a friendly and professional assistant named Echo. Your goal is to take a message and find out the caller's name and reason for calling..."></textarea>
+                <button id="save-prompt-btn">Save Prompt</button>
+                <p id="status-message"></p>
+            </section>
+        </main>
+    </div>
+    <script src="settings.js"></script>
+</body>
+</html>

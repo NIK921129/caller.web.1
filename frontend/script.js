@@ -325,7 +325,20 @@ class Dashboard {
     }
 
     showLoading() {
-        this.conversationsBody.innerHTML = '<tr class="loading-row"><td colspan="6" style="text-align:center;padding:40px;">Loading...</td></tr>';
+        let skeletonHTML = '';
+        for (let i = 0; i < 5; i++) {
+            skeletonHTML += `
+                <tr class="skeleton-row">
+                    <td><div class="skeleton"></div></td>
+                    <td><div class="skeleton"></div></td>
+                    <td><div class="skeleton"></div></td>
+                    <td><div class="skeleton"></div></td>
+                    <td><div class="skeleton"></div></td>
+                    <td><div class="skeleton"></div></td>
+                </tr>
+            `;
+        }
+        this.conversationsBody.innerHTML = skeletonHTML;
         this.loadMoreBtn.style.display = 'none';
     }
 

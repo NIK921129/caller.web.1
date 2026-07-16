@@ -83,6 +83,13 @@ const conversationSchema = new mongoose.Schema({
 
 const Conversation = mongoose.model('Conversation', conversationSchema);
 
+// New Schema for Settings
+const settingSchema = new mongoose.Schema({
+    key: { type: String, required: true, unique: true, index: true },
+    value: { type: mongoose.Schema.Types.Mixed, required: true }
+});
+const Setting = mongoose.model('Setting', settingSchema);
+
 // 5. API Router
 const apiRouter = express.Router();
 
@@ -159,6 +166,36 @@ apiRouter.get('/conversations/:id', async (req, res) => {
     }
 });
 
+// GET /api/v1/settings/prompt
+apiRouter.get('/settings/prompt', async (req, res) => {
+    try {
+        const promptSetting = await Setting.findOne({ key: 'ai_prompt' });
+        res.json({ prompt: promptSetting ? promptSetting.value : '' });
+    } catch (error) {
+        console.error('Error fetching prompt:', error);
+        res.status(500).json({ error: 'Failed to fetch prompt' });
+    }
+});
+
+// PUT /api/v1/settings/prompt
+apiRouter.put('/settings/prompt', async (req, res) => {
+    try {
+        const { prompt } = req.body;
+        if (typeof prompt !== 'string') {
+            return res.status(400).json({ error: 'Invalid prompt data' });
+        }
+        await Setting.findOneAndUpdate(
+            { key: 'ai_prompt' },
+            { value: prompt },
+            { upsert: true, new: true } // Creates the document if it doesn't exist
+        );
+        res.status(200).json({ message: 'Prompt updated successfully' });
+    } catch (error) {
+        console.error('Error updating prompt:', error);
+        res.status(500).json({ error: 'Failed to update prompt' });
+    }
+});
+
 // === TWILIO WEBHOOKS ===
 
 // Main entry point for incoming calls.
@@ -181,14 +218,16 @@ app.post('/voice', (req, res) => {
 
 // Fallback handler if the personal number isn't answered.
 // This initiates the real-time conversation stream with the AI.
-app.post('/handle-no-answer', (req, res) => {
+app.post('/handle-no-answer', async (req, res) => {
     const callSid = req.body.CallSid;
     console.log(`Call ${callSid} not answered. Engaging AI assistant.`);
 
     const twiml = new twilio.twiml.VoiceResponse();
     
-    // TODO: Fetch the initial prompt from the database here.
-    const initialPrompt = "You are a helpful AI assistant. Keep your responses concise.";
+    // Fetch the dynamic prompt from the database.
+    const promptSetting = await Setting.findOne({ key: 'ai_prompt' });
+    const initialPrompt = promptSetting?.value || "You are a helpful AI assistant. Your goal is to take a message.";
+    console.log("Using AI prompt:", initialPrompt.substring(0, 50) + "...");
     
     twiml.say({ voice: 'Polly.Amy' }, "Hello, you've reached the AI assistant. Please state your name and the reason for your call after the beep.");
     
