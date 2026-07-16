@@ -192,11 +192,22 @@ app.post('/handle-no-answer', (req, res) => {
     
     twiml.say({ voice: 'Polly.Amy' }, "Hello, you've reached the AI assistant. Please state your name and the reason for your call after the beep.");
     
-    // Use <Connect> and <Stream> to start a bi-directional audio stream over WebSockets.
+    // Use <Connect> and <Stream> to start a bi-directional audio stream.
+    // We also configure Twilio to perform speech-to-text and send us the results.
     const connect = twiml.connect();
     const stream = connect.stream({
         url: `wss://${req.headers.host}/`, // Connect to the WebSocket server on this same host.
     });
+    
+    // Configure Twilio's speech-to-text.
+    // 'interimResults: false' means we only get the final, complete transcript.
+    // 'speechTimeout' tells Twilio to detect the end of speech after 1.2 seconds of silence.
+    twiml.start().speechRecognizer({
+        language: 'en-US',
+        speechTimeout: '1.2',
+        interimResults: false
+    }).on('speech', (speech) => {}); // The 'speech' event is handled in the WebSocket.
+
     // Pass initial parameters to the WebSocket stream.
     stream.parameter({ name: 'initialPrompt', value: initialPrompt });
     stream.parameter({ name: 'callSid', value: callSid });
@@ -224,6 +235,7 @@ const wss = new WebSocketServer({ server });
 wss.on('connection', (ws) => {
     console.log('WebSocket connection established.');
     let chat; // To hold the Gemini chat session
+    let streamSid; // To hold the Twilio stream SID
 
     ws.on('message', async (message) => {
         const msg = JSON.parse(message);
@@ -231,10 +243,12 @@ wss.on('connection', (ws) => {
         switch (msg.event) {
             case 'connected':
                 console.log(`Twilio stream connected for call ${msg.streamSid}`);
+                streamSid = msg.streamSid;
                 break;
 
             case 'start':
                 console.log(`Starting conversation for call ${msg.start.callSid}`);
+                streamSid = msg.start.streamSid;
                 // Initialize a new chat session with Gemini when the stream starts.
                 const model = genAI.getGenerativeModel({ model: "gemini-pro" });
                 chat = model.startChat({
@@ -244,6 +258,37 @@ wss.on('connection', (ws) => {
 
             case 'media':
                 // This event contains the raw audio data. We are using 'stop' with transcription instead.
+                // The actual transcription will come in the 'speech' event.
+                break;
+
+            case 'speech':
+                // This event is from the <SpeechRecognizer> we configured in the TwiML.
+                if (msg.speech && msg.speech.isFinal) {
+                    const userText = msg.speech.transcript;
+                    console.log(`User said: "${userText}"`);
+
+                    if (chat && userText) {
+                        // Send user's text to Gemini and get a response.
+                        const result = await chat.sendMessage(userText);
+                        const aiResponse = await result.response.text();
+                        console.log(`AI said: "${aiResponse}"`);
+
+                        // Send the AI's response back to Twilio to be spoken to the user.
+                        ws.send(JSON.stringify({
+                            event: 'media',
+                            streamSid: streamSid,
+                            media: {
+                                payload: Buffer.from(aiResponse, 'utf8').toString('base64'),
+                                // This is a trick to send text to be synthesized.
+                                // We are not actually sending audio, but Twilio's TTS will pick this up.
+                                'x-twilio-media': {
+                                    'content-type': 'text/plain',
+                                    'voice': 'Polly.Amy'
+                                }
+                            }
+                        }));
+                    }
+                }
                 break;
 
             case 'stop':
