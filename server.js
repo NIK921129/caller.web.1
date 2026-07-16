@@ -256,12 +256,8 @@ app.post('/handle-no-answer', async (req, res) => {
     console.log(`Generated TwiML for WebSocket stream for call ${callSid}.`);
 });
 
-// Register API and Webhook routes
+// Register API and Webhook routes before starting the server
 app.use('/api/v1', apiRouter);
-
-// The Twilio webhooks are already registered above with app.post()
-
-
 // 6. Start the Server and WebSocket Server
 const server = app.listen(port, host, () => {
     console.log(`AI Call Assistant backend is listening on http://${host}:${port}`);
