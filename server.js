@@ -21,13 +21,13 @@ const geminiApiKey = process.env.GEMINI_API_KEY;
 const frontendUrl = process.env.FRONTEND_URL; // e.g., https://caller-web-1.vercel.app
 
 // Check for essential configuration
-if (!mongoUri || !twilioAccountSid || !twilioAuthToken) {
+if (!mongoUri || !twilioAccountSid || !twilioAuthToken || !geminiApiKey) {
     console.error('FATAL ERROR: Missing required environment variables.');
     process.exit(1);
 }
 
 // Initialize Gemini AI
-const genAI = new GoogleGenerativeAI(geminiApiKey);
+const genAI = new GoogleGenerativeAI(geminiApiKey); // This is now safe
 
 // 3. Initialize Express App
 const app = express();
