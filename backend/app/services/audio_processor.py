@@ -9,6 +9,10 @@ from app.database.mongodb import get_database
 from app.config import settings
 from app.models import CallSession
 from datetime import datetime
+import logging
+
+# Set up a logger for this module
+logger = logging.getLogger(__name__)
 
 class AudioProcessor:
     def __init__(self):
@@ -52,7 +56,7 @@ class AudioProcessor:
                 if self.session.is_speaking and self.session.pending_audio_task:
                     self.session.pending_audio_task.cancel()
                     self.session.is_speaking = False
-                    print("Barge-in detected. AI speech interrupted.")
+                    logger.info("Barge-in detected for call %s. AI speech interrupted.", self.session.call_sid)
 
                 if not transcript or not transcript.strip():
                     self.audio_queue.task_done()
@@ -81,7 +85,7 @@ class AudioProcessor:
             except asyncio.CancelledError:
                 break # Exit loop when the task is cancelled
             except Exception as e:
-                print(f"Audio processing error: {e}")
+                logger.error("Error in audio processing loop for call %s: %s", self.session.call_sid, e, exc_info=True)
                 if not self.audio_queue.empty():
                     self.audio_queue.task_done() # Ensure queue doesn't get stuck
     
@@ -114,7 +118,7 @@ class AudioProcessor:
             self.session.is_speaking = True
             await websocket.send_text(json.dumps(media_response))
         except asyncio.CancelledError:
-            print("Audio playback cancelled.")
+            logger.info("Audio playback for call %s was cancelled (likely due to barge-in).", self.session.call_sid)
         finally:
             self.session.is_speaking = False
     
