@@ -5,7 +5,7 @@ from fastapi import WebSocket
 from app.services.stt_service import SpeechToTextService
 from app.services.tts_service import TextToSpeechService
 from app.services.gemini_service import GeminiService
-from app.database.mongodb import get_database
+from motor.motor_asyncio import AsyncIOMotorClient
 from app.config import settings
 from app.models import CallSession
 from datetime import datetime
@@ -28,7 +28,7 @@ class AudioProcessor:
         self.session = CallSession(call_sid=call_sid, system_prompt=system_prompt)
         self.gemini.start_chat_session(system_prompt)
         
-        db = await get_database()
+        db = websocket.app.state.db
         # Start the background processing task
         self.processing_task = asyncio.create_task(self._process_audio_queue(db))
         
@@ -89,7 +89,7 @@ class AudioProcessor:
                 if not self.audio_queue.empty():
                     self.audio_queue.task_done() # Ensure queue doesn't get stuck
     
-    async def _store_transcript(self, db, speaker: str, text: str):
+    async def _store_transcript(self, db: AsyncIOMotorClient, speaker: str, text: str):
         """Store transcript in database and memory"""
         transcript_entry = {
             "speaker": speaker,
@@ -133,7 +133,7 @@ class AudioProcessor:
                 pass # Task was cancelled as expected
 
         if self.session:
-            db = await get_database()
+            db = websocket.app.state.db
             
             # Generate summary
             summary_text = "No conversation to summarize."
@@ -142,7 +142,10 @@ class AudioProcessor:
                     self.session.conversation_history,
                     self.session.call_sid
                 )
+                # Use the structured summary
                 summary_text = summary_result.get("summary", "Summary generation failed.")
+                sentiment = summary_result.get("sentiment")
+                topics = summary_result.get("topics")
             
             # Update conversation status
             await db["conversations"].update_one(
@@ -151,7 +154,9 @@ class AudioProcessor:
                     "$set": {
                         "end_time": datetime.utcnow(),
                         "status": "completed",
-                        "summary": summary_text
+                        "summary": summary_text,
+                        "sentiment": sentiment,
+                        "topics": topics
                     }
                 }
             )

@@ -1,18 +1,12 @@
 from motor.motor_asyncio import AsyncIOMotorClient
 from app.config import settings
 
-class DataBase:
-    client: AsyncIOMotorClient = None
-
-db = DataBase()
-
-async def get_database():
-    return db.client[settings.MONGODB_DB_NAME]
-
 async def connect_to_mongo():
-    db.client = AsyncIOMotorClient(settings.MONGODB_URI)
-    print("Connected to MongoDB...")
+    """Creates a MongoDB client instance."""
+    return AsyncIOMotorClient(settings.MONGODB_URI)
     
 async def close_mongo_connection():
-    db.client.close()
-    print("Closed MongoDB connection.")
+    """Closes the MongoDB client instance."""
+    # The current implementation doesn't require an explicit close call
+    # as the client manages connections in a pool.
+    pass

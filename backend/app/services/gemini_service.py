@@ -2,6 +2,9 @@ import google.generativeai as genai
 from typing import List, Dict, Any
 import json
 from app.config import settings
+import logging
+
+logger = logging.getLogger(__name__)
 
 class GeminiService:
     def __init__(self, api_key: str):
@@ -12,7 +15,8 @@ class GeminiService:
                 "temperature": 0.7, # Example, or add to settings
                 "top_p": 0.95,
                 "top_k": 40,
-                "max_output_tokens": 500, # Example, or add to settings
+                "max_output_tokens": 500,
+                "response_mime_type": "application/json"
             }
         )
         self.chat = None
@@ -42,7 +46,7 @@ class GeminiService:
                 "finish_reason": "complete"
             }
         except Exception as e:
-            print(f"Gemini API error: {e}")
+            logger.error("Gemini API error during response generation: %s", e, exc_info=True)
             return {
                 "response_text": "I'm having trouble processing your request. Could you please repeat that?",
                 "tokens_used": 0,
@@ -53,22 +57,30 @@ class GeminiService:
         """Generate summary of conversation"""
         try:
             prompt = f"""
-            Analyze the following conversation and provide:
-            1. A brief summary (2-3 sentences)
-            2. Sentiment analysis (positive/neutral/negative)
-            3. Key topics discussed (list up to 3)
-            4. Any follow-up required
+            Analyze the following conversation transcript and provide a JSON object with the following structure:
+            - "summary": A brief summary of the conversation (2-3 sentences).
+            - "sentiment": The overall sentiment of the caller (e.g., "positive", "neutral", "negative", "urgent").
+            - "topics": A list of up to 3 key topics discussed.
+            - "follow_up_required": A boolean indicating if a follow-up action is needed.
             
             Conversation:
             {json.dumps(transcript, indent=2)}
+
+            Respond ONLY with the JSON object.
             """
             
-            response = self.model.generate_content(prompt)
-            # Parse structured response (you might want to use JSON mode in Gemini)
-            return {
-                "summary": response.text,
-                "conversation_id": conversation_id
-            }
+            # The model is configured to return JSON, so we can parse it directly.
+            response = await self.model.generate_content_async(prompt)
+            
+            # Clean up the response text to ensure it's valid JSON
+            cleaned_text = response.text.strip().replace("```json", "").replace("```", "")
+            summary_data = json.loads(cleaned_text)
+            summary_data["conversation_id"] = conversation_id
+            return summary_data
+
+        except json.JSONDecodeError as e:
+            logger.error("Failed to decode JSON from Gemini summary response: %s. Response text: %s", e, response.text)
+            return {"summary": "Summary parsing failed.", "error": str(e)}
         except Exception as e:
-            print(f"Summary generation error: {e}")
+            logger.error("Summary generation error for conversation %s: %s", conversation_id, e, exc_info=True)
             return {"summary": "Unable to generate summary", "error": str(e)}
