@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Request, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.responses import Response
 from twilio.twiml.voice_response import VoiceResponse, Dial, Connect, Stream
-from app.database.mongodb import db_client
+from app.database.mongodb import get_database
 from app.services.twilio_service import TwilioService
 from app.services.audio_processor import AudioProcessor
 from app.config import settings
@@ -19,8 +19,9 @@ async def handle_incoming_call(request: Request):
     caller_number = form_data.get('From')
     call_sid = form_data.get('CallSid')
     
+    db = await get_database()
     # Log incoming call
-    await db_client.get_collection("call_logs").insert_one({
+    await db["call_logs"].insert_one({
         "call_sid": call_sid,
         "incoming_phone": caller_number,
         "caller_name": form_data.get('CallerName', 'Unknown'),
@@ -57,8 +58,9 @@ async def call_status(request: Request):
     call_status = form_data.get('CallStatus')
     dial_call_status = form_data.get('DialCallStatus')
     
+    db = await get_database()
     # Update call log
-    await db_client.get_collection("call_logs").update_one(
+    await db["call_logs"].update_one(
         {"call_sid": call_sid},
         {"$set": {
             "status": call_status,
@@ -138,7 +140,8 @@ async def handle_media_stream(websocket: WebSocket):
 
 async def get_system_prompt():
     """Get the current system prompt from database"""
-    result = await db_client.get_collection("system_settings").find_one(
+    db = await get_database()
+    result = await db["system_settings"].find_one(
         {"setting_key": "agent_prompt"},
         sort=[("updated_at", -1)]  # Get the latest version
     )
