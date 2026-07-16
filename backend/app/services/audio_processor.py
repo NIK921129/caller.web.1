@@ -45,36 +45,39 @@ class AudioProcessor:
 
     async def _process_audio_queue(self):
         """Continuously process audio chunks from the queue."""
-        try:
-            websocket, audio_base64 = await self.audio_queue.get()
-            audio_bytes = base64.b64decode(audio_base64)
-            # Transcribe audio
-            transcript = await self.stt.transcribe_audio(audio_bytes)
-            
-            if transcript and len(transcript.strip()) > 0:
-                # Store transcript in conversation
-                await self._store_transcript("caller", transcript)
+        while True:
+            try:
+                websocket, audio_base64 = await self.audio_queue.get()
+                audio_bytes = base64.b64decode(audio_base64)
+                # Transcribe audio
+                transcript = await self.stt.transcribe_audio(audio_bytes)
                 
-                # Get AI response
-                ai_response = await self.gemini.generate_response(
-                    user_message=transcript,
-                    system_prompt=self.current_session["system_prompt"],
-                    conversation_history=self.current_session["conversation_history"]
-                )
-                
-                if ai_response.get("response_text"):
-                    # Store AI response
-                    await self._store_transcript("ai_agent", ai_response["response_text"])
+                if transcript and len(transcript.strip()) > 0:
+                    # Store transcript in conversation
+                    await self._store_transcript("caller", transcript)
                     
-                    # Convert to audio
-                    audio_response = await self.tts.text_to_speech(ai_response["response_text"])
+                    # Get AI response
+                    ai_response = await self.gemini.generate_response(
+                        user_message=transcript,
+                        system_prompt=self.current_session["system_prompt"],
+                        conversation_history=self.current_session["conversation_history"]
+                    )
                     
-                    # Send audio back via WebSocket
-                    await self._send_audio_response(websocket, audio_response)
-
-            self.audio_queue.task_done()
-        except Exception as e:
-            print(f"Audio processing error: {e}")
+                    if ai_response.get("response_text"):
+                        # Store AI response
+                        await self._store_transcript("ai_agent", ai_response["response_text"])
+                        
+                        # Convert to audio
+                        audio_response = await self.tts.text_to_speech(ai_response["response_text"])
+                        
+                        # Send audio back via WebSocket
+                        await self._send_audio_response(websocket, audio_response)
+    
+                self.audio_queue.task_done()
+            except asyncio.CancelledError:
+                break # Exit loop when the task is cancelled
+            except Exception as e:
+                print(f"Audio processing error: {e}")
     
     async def _store_transcript(self, speaker: str, text: str):
         """Store transcript in database and memory"""
