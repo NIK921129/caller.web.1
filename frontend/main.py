@@ -15,11 +15,9 @@ app = FastAPI(
 )
 
 # --- CORS Configuration ---
-# This allows your Vercel frontend to communicate with your Render backend.
+# This allows your Vercel frontend to communicate with your backend.
 origins = [
-    "https://callerweb1.vercel.app", # Main Production URL
-    "https://callerweb1-git-main-voxerachat-3388s-projects.vercel.app", # Vercel Production URL
-    "https://callerweb1-qjr7o58ua-voxerachat-3388s-projects.vercel.app", # Vercel Preview URL
+    "https://callerweb1.vercel.app", # Your future production URL
     "http://localhost:8080",  # For local development
     "http://127.0.0.1:8080"
 ]
@@ -35,17 +33,18 @@ app.add_middleware(
 # Lifecycle events
 @app.on_event("startup")
 async def startup_db_client():
-    app.state.db = await connect_to_mongo()
-    logging.info("Application started successfully")
+    app.state.db_client = await connect_to_mongo()
+    app.state.db = app.state.db_client[settings.MONGODB_DB_NAME]
+    logging.info("Application started and connected to MongoDB.")
 
 @app.on_event("shutdown")
 async def shutdown_db_client():
-    app.state.db.close()
-    logging.info("Application shut down")
+    app.state.db_client.close()
+    logging.info("Application shut down and MongoDB connection closed.")
 
 @app.get("/health", tags=["Health"])
 async def health_check():
-    """Simple health check endpoint for Render."""
+    """Simple health check endpoint for Render/Vercel."""
     return {"status": "healthy"}
 
 # Register routes

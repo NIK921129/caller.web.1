@@ -29,6 +29,10 @@ class Dashboard {
         this.modalCloseBtn = document.querySelector('.close-btn');
         this.conversationsBody = document.getElementById('conversations-body');
         this.conversationDetailContainer = document.getElementById('conversation-detail');
+        this.totalCallsEl = document.getElementById('total-calls');
+        this.aiHandledEl = document.getElementById('ai-handled');
+        this.avgDurationEl = document.getElementById('avg-duration');
+        this.todayCallsEl = document.getElementById('today-calls');
         this.tableContainer = document.querySelector('.conversations');
     }
 
@@ -97,17 +101,21 @@ class Dashboard {
     async loadStats() {
         try {
             const stats = await api.get('/conversations/stats');
-            document.getElementById('total-calls').textContent = stats.total_calls || 0;
-            document.getElementById('ai-handled').textContent = stats.ai_handled || 0;
-            document.getElementById('avg-duration').textContent = stats.avg_duration || '0:00';
-            document.getElementById('today-calls').textContent = stats.last_24h || 0;
+            this.totalCallsEl.textContent = stats.total_calls ?? 0;
+            this.aiHandledEl.textContent = stats.ai_handled ?? 0;
+            this.avgDurationEl.textContent = stats.avg_duration ?? '0:00';
+            this.todayCallsEl.textContent = stats.last_24h ?? 0;
         } catch (error) {
             console.error('Error loading stats:', error);
+            // Optionally, show an error state on the cards
+            [this.totalCallsEl, this.aiHandledEl, this.avgDurationEl, this.todayCallsEl].forEach(el => el.textContent = 'Error');
         }
     }
 
     async loadConversations(append = false) {
-        this.showLoading();
+        if (!append) {
+            this.showLoading();
+        }
         try {
             const params = new URLSearchParams({
                 limit: this.limit,
@@ -127,7 +135,7 @@ class Dashboard {
             }
 
             // Show/hide load more button
-            this.loadMoreBtn.style.display = data.total > this.currentPage * this.limit ? 'block' : 'none';
+            this.loadMoreBtn.style.display = data.total > (this.currentPage * this.limit) ? 'block' : 'none';
 
         } catch (error) {
             console.error('Error loading conversations:', error);
@@ -137,15 +145,6 @@ class Dashboard {
 
     renderConversations(conversations) {
         this.conversationsBody.innerHTML = '';
-        
-        if (this.tableContainer.querySelector('.loading-row')) {
-            this.tableContainer.querySelector('.loading-row').remove();
-        }
-        if (this.tableContainer.querySelector('.error-row')) {
-            this.tableContainer.querySelector('.error-row').remove();
-        }
-
-
         if (conversations.length === 0) {
             this.conversationsBody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:40px;">No conversations found</td></tr>';
             return;
@@ -155,7 +154,7 @@ class Dashboard {
     }
 
     appendConversations(conversations) {
-        const startIndex = this.conversationsBody.children.length;
+        const startIndex = (this.currentPage - 1) * this.limit;
         
         const fragment = document.createDocumentFragment();
         conversations.map((conv, index) => this.createConversationRow(conv, startIndex + index))
@@ -165,13 +164,14 @@ class Dashboard {
     }
 
     createConversationRow(conv, index) {
+        const status = conv.status || 'unknown';
         const row = document.createElement('tr');
         row.innerHTML = `
             <td>${index + 1}</td>
             <td>${this.formatCaller(conv.caller_number)}</td>
             <td>${this.formatDate(conv.start_time)}</td>
             <td>${this.formatDuration(conv.duration_seconds)}</td>
-            <td><span class="status-badge status-${conv.call_status}">${conv.call_status.replace('_', ' ').toUpperCase()}</span></td>
+            <td><span class="status-badge status-${status.replace(' ', '_')}">${status.replace('_', ' ').toUpperCase()}</span></td>
             <td><button class="btn-view" data-id="${conv._id}">View</button></td>
         `;
         return row;
@@ -179,10 +179,10 @@ class Dashboard {
 
     async viewConversation(conversationId) {
         this.conversationDetailContainer.innerHTML = '<p>Loading details...</p>';
-        this.conversationModal.classList.add('active');
+        this.openModal();
         try {
-            const data = await api.get(`/conversations/${conversationId}`);
-            this.renderConversationDetail(data);
+            const conversation = await api.get(`/conversations/${conversationId}`);
+            this.renderConversationDetail(conversation);
         } catch (error) {
             console.error('Error loading conversation:', error);
             this.conversationDetailContainer.innerHTML = '<p class="error-message">Failed to load conversation details.</p>';
@@ -195,8 +195,8 @@ class Dashboard {
             <div class="call-info">
                 <p><strong>Caller:</strong> ${this.formatCaller(conversation.caller_number)}</p>
                 <p><strong>Date:</strong> ${this.formatDate(conversation.start_time)}</p>
-                <p><strong>Duration:</strong> ${this.formatDuration(conversation.duration_seconds)}</p>
-                <p><strong>Status:</strong> ${conversation.call_status}</p>
+                <p><strong>Duration:</strong> ${this.formatDuration(conversation.duration_seconds ?? 0)}</p>
+                <p><strong>Status:</strong> ${conversation.status || 'N/A'}</p>
             </div>
             
             ${conversation.summary ? `
@@ -210,7 +210,7 @@ class Dashboard {
             
             <div class="transcript">
                 <h3>Transcript</h3>
-                ${conversation.transcript.map(entry => `
+                ${(conversation.transcript || []).map(entry => `
                     <div class="message ${entry.speaker}">
                         <span class="speaker">${entry.speaker === 'caller' ? '👤 Caller' : '🤖 AI Agent'}</span>
                         <span class="time">${this.formatTime(entry.timestamp)}</span>
@@ -221,13 +221,22 @@ class Dashboard {
         `;
     }
 
+    openModal() {
+        this.conversationModal.classList.add('active');
+    }
+
     closeModal() {
         this.conversationModal.classList.remove('active');
     }
 
     formatCaller(number) {
         if (!number) return 'Unknown';
-        return number.replace(/(\+\d{1})(\d{3})(\d{3})(\d{4})/, '$1 ($2) $3-$4');
+        const cleaned = ('' + number).replace(/\D/g, '');
+        const match = cleaned.match(/^(1|)?(\d{3})(\d{3})(\d{4})$/);
+        if (match) {
+            return `+1 (${match[2]}) ${match[3]}-${match[4]}`;
+        }
+        return number;
     }
 
     formatDate(dateString) {
@@ -253,9 +262,9 @@ class Dashboard {
     }
 
     formatDuration(seconds) {
-        if (!seconds) return '0:00';
+        if (seconds === null || seconds === undefined) return '0:00';
         const mins = Math.floor(seconds / 60);
-        const secs = seconds % 60;
+        const secs = Math.round(seconds % 60);
         return `${mins}:${secs.toString().padStart(2, '0')}`;
     }
 
