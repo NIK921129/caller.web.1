@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.routes import webhooks, conversations
-from app.database.mongodb import db_client
+from app.database.mongodb import connect_to_mongo, close_mongo_connection
 from app.config import settings
 import logging
 
@@ -32,12 +32,12 @@ app.add_middleware(
 # Lifecycle events
 @app.on_event("startup")
 async def startup_db_client():
-    await db_client.connect()
+    await connect_to_mongo()
     logging.info("Application started successfully")
 
 @app.on_event("shutdown")
 async def shutdown_db_client():
-    await db_client.close()
+    await close_mongo_connection()
     logging.info("Application shut down")
 
 @app.get("/health", tags=["Health"])

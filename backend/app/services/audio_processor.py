@@ -5,7 +5,7 @@ from fastapi import WebSocket
 from app.services.stt_service import SpeechToTextService
 from app.services.tts_service import TextToSpeechService
 from app.services.gemini_service import GeminiService
-from app.database.mongodb import db_client
+from app.database.mongodb import get_database
 from app.config import settings
 from datetime import datetime
 
@@ -32,7 +32,8 @@ class AudioProcessor:
         self.processing_task = asyncio.create_task(self._process_audio_queue())
         
         # Create conversation record in database
-        await db_client.get_collection("conversations").insert_one({
+        db = await get_database()
+        await db["conversations"].insert_one({
             "call_sid": call_sid,
             "start_time": datetime.utcnow(),
             "transcript": [],
@@ -94,7 +95,8 @@ class AudioProcessor:
             self.current_session["conversation_history"].append({"speaker": "ai_agent", "text": text})
         
         # Store in database
-        await db_client.get_collection("conversations").update_one(
+        db = await get_database()
+        await db["conversations"].update_one(
             {"call_sid": self.current_session["call_sid"]},
             {"$push": {"transcript": transcript_entry}}
         )
@@ -122,22 +124,27 @@ class AudioProcessor:
                 pass # Task was cancelled as expected
 
         if self.current_session:
+            db = await get_database()
+            
+            # Generate summary
+            summary_text = "No conversation to summarize."
+            if len(self.current_session["conversation_history"]) > 0:
+                summary_result = await self.gemini.generate_summary(
+                    self.current_session["conversation_history"],
+                    self.current_session["call_sid"]
+                )
+                summary_text = summary_result.get("summary", "Summary generation failed.")
+            
             # Update conversation status
-            await db_client.get_collection("conversations").update_one(
+            await db["conversations"].update_one(
                 {"call_sid": self.current_session["call_sid"]},
                 {
                     "$set": {
                         "end_time": datetime.utcnow(),
-                        "status": "completed"
+                        "status": "completed",
+                        "summary": summary_text
                     }
                 }
             )
-            
-            # Generate summary
-            if len(self.current_session["conversation_history"]) > 0:
-                await self.gemini.generate_summary(
-                    self.current_session["conversation_history"],
-                    self.current_session["call_sid"]
-                )
             
             self.current_session = None

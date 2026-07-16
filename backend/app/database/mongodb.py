@@ -1,26 +1,18 @@
 from motor.motor_asyncio import AsyncIOMotorClient
-from typing import Optional
 from app.config import settings
 
-class MongoDB:
-    client: Optional[AsyncIOMotorClient] = None
-    db = None
+class DataBase:
+    client: AsyncIOMotorClient = None
 
-    async def connect(self):
-        """Connect to MongoDB Atlas"""
-        self.client = AsyncIOMotorClient(settings.MONGODB_URI)
-        self.db = self.client[settings.MONGODB_DB_NAME]
-        print("Connected to MongoDB")
+db = DataBase()
 
-    async def close(self):
-        """Close MongoDB connection"""
-        if self.client:
-            self.client.close()
-            print("Closed MongoDB connection")
+async def get_database():
+    return db.client[settings.MONGODB_DB_NAME]
 
-    def get_collection(self, collection_name: str):
-        """Get a collection reference"""
-        return self.db[collection_name]
-
-# Singleton instance
-db_client = MongoDB()
+async def connect_to_mongo():
+    db.client = AsyncIOMotorClient(settings.MONGODB_URI)
+    print("Connected to MongoDB...")
+    
+async def close_mongo_connection():
+    db.client.close()
+    print("Closed MongoDB connection.")
