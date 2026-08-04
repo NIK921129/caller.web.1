@@ -3,6 +3,8 @@ const express = require('express');
 const twilio = require('twilio');
 const cors = require('cors');
 const mongoose = require('mongoose');
+const helmet = require('helmet');
+const morgan = require('morgan');
 
 // Local Modules
 const config = require('./config');
@@ -26,16 +28,33 @@ const corsOptions = {
     ].filter(Boolean)
 };
 app.use(cors(corsOptions));
+
+// Security and Logging Middleware
+app.use(helmet()); // Set security-related HTTP response headers
+app.use(morgan('dev')); // Log HTTP requests to the console
+
+// Body Parsers
 app.use(express.json());
 
-// Twilio Webhook routes require raw body for validation.
-app.use('/voice', twilio.webhook(config.twilioAuthToken, { url: `https://${config.host}` }), twilioRoutes);
-app.use('/handle-no-answer', twilio.webhook(config.twilioAuthToken, { url: `https://${config.host}` }), twilioRoutes);
-app.use('/handle-dial-status', twilio.webhook(config.twilioAuthToken, { url: `https://${config.host}` }), twilioRoutes);
-app.use('/handle-call-status', twilio.webhook(config.twilioAuthToken, { url: `https://${config.host}` }), twilioRoutes);
+// Twilio Webhook routes require the raw body for validation, so they must be defined
+// before express.json() if it were to parse them. We will group them under a router.
+// The validation middleware needs the server's public URL to work correctly.
+const twilioWebhookMiddleware = twilio.webhook(config.twilioAuthToken, { url: `${config.publicUrl}/twilio` });
+
+// Apply validation middleware to all routes handled by twilioRoutes
+app.use('/twilio', twilioWebhookMiddleware, twilioRoutes);
 
 // API routes
 app.use('/api/v1', apiRoutes);
+
+// Global Error Handler for API routes
+app.use((err, req, res, next) => {
+    console.error(err.stack);
+    // Avoid sending error details in production for security
+    const message = config.isProduction ? 'An internal server error occurred.' : err.message;
+    const statusCode = res.statusCode !== 200 ? res.statusCode : 500;
+    res.status(statusCode).json({ error: message });
+});
 
 // Start Server
 const server = app.listen(config.port, config.host, () => {

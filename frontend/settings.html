@@ -29,6 +29,26 @@
                 <p id="status-message"></p>
             </section>
         </main>
+
+        <section class="connectivity-status">
+            <h2>Connectivity Status</h2>
+            <p class="subtitle">Check the backend's connection to required services.</p>
+            <div class="status-table">
+                <div class="status-row">
+                    <div class="service-name">Database (MongoDB)</div>
+                    <div class="service-status" id="status-database">--</div>
+                </div>
+                <div class="status-row">
+                    <div class="service-name">Telephony (Twilio)</div>
+                    <div class="service-status" id="status-twilio">--</div>
+                </div>
+                <div class="status-row">
+                    <div class="service-name">AI Provider (Gemini)</div>
+                    <div class="service-status" id="status-gemini">--</div>
+                </div>
+            </div>
+            <button id="check-status-btn">Check Status</button>
+        </section>
     </div>
     <script src="settings.js"></script>
 </body>

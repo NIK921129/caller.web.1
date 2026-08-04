@@ -1,4 +1,4 @@
-class APIClient {
+er class APIClient {
     constructor(baseURL = '') {
         this.baseURL = baseURL;
     }
@@ -28,12 +28,22 @@ class SettingsPage {
         this.promptTextarea = document.getElementById('ai-prompt');
         this.saveButton = document.getElementById('save-prompt-btn');
         this.statusMessage = document.getElementById('status-message');
+
+        // Connectivity Status Elements
+        this.checkStatusBtn = document.getElementById('check-status-btn');
+        this.dbStatusEl = document.getElementById('status-database');
+        this.twilioStatusEl = document.getElementById('status-twilio');
+        this.geminiStatusEl = document.getElementById('status-gemini');
+
         this.init();
     }
 
     init() {
         this.loadPrompt();
         this.saveButton.addEventListener('click', () => this.savePrompt());
+        if (this.checkStatusBtn) {
+            this.checkStatusBtn.addEventListener('click', () => this.checkConnectivity());
+        }
     }
 
     async loadPrompt() {
@@ -62,6 +72,41 @@ class SettingsPage {
             this.saveButton.textContent = 'Save Prompt';
             this.saveButton.disabled = false;
             setTimeout(() => this.statusMessage.textContent = '', 3000);
+        }
+    }
+
+    async checkConnectivity() {
+        this.checkStatusBtn.textContent = 'Checking...';
+        this.checkStatusBtn.disabled = true;
+
+        const statusElements = {
+            database: this.dbStatusEl,
+            twilio: this.twilioStatusEl,
+            gemini: this.geminiStatusEl,
+        };
+
+        // Reset statuses
+        Object.values(statusElements).forEach(el => {
+            el.innerHTML = `<span class="status-checking">Checking...</span>`;
+        });
+
+        try {
+            const statuses = await api.get('/health/status');
+            for (const [service, data] of Object.entries(statuses)) {
+                if (statusElements[service]) {
+                    const statusClass = data.status === 'ok' ? 'status-ok' : 'status-error';
+                    statusElements[service].innerHTML = `<span class="${statusClass}">${data.message}</span>`;
+                }
+            }
+        } catch (error) {
+            // The fetch itself can fail, or the API returns a 503 which is caught here
+            console.error('Failed to fetch connectivity status:', error);
+            Object.values(statusElements).forEach(el => {
+                el.innerHTML = `<span class="status-error">Failed to get status</span>`;
+            });
+        } finally {
+            this.checkStatusBtn.textContent = 'Check Status';
+            this.checkStatusBtn.disabled = false;
         }
     }
 }
