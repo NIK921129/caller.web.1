@@ -12,12 +12,14 @@ const config = {
     geminiApiKey: process.env.GEMINI_API_KEY,
     frontendUrl: process.env.FRONTEND_URL, // e.g., https://caller-web-1.vercel.app
     publicUrl: process.env.PUBLIC_URL, // e.g., https://your-backend.onrender.com
+    adminUsername: process.env.ADMIN_USERNAME,
+    adminPassword: process.env.ADMIN_PASSWORD,
     sessionSecret: process.env.SESSION_SECRET,
     isProduction: process.env.NODE_ENV === 'production',
 };
 
 // Check for essential configuration
-const requiredConfig = ['mongoUri', 'twilioAccountSid', 'twilioAuthToken', 'geminiApiKey', 'myPhoneNumber', 'publicUrl', 'sessionSecret'];
+const requiredConfig = ['mongoUri', 'twilioAccountSid', 'twilioAuthToken', 'geminiApiKey', 'myPhoneNumber', 'publicUrl', 'sessionSecret', 'adminUsername', 'adminPassword'];
 const missingConfig = requiredConfig.filter(key => !config[key]);
 
 if (missingConfig.length > 0) {

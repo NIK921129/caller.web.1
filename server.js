@@ -15,7 +15,6 @@ const connectDB = require('./db');
 const apiRoutes = require('./routes/api');
 const twilioRoutes = require('./routes/twilio');
 const authRoutes = require('./routes/auth');
-const setupWebSocket = require('./services/websocket');
 const { isAuthenticated } = require('./middleware/auth');
 require('./services/passport');
 
@@ -82,7 +81,7 @@ app.use((err, req, res, next) => {
 });
 
 // Start Server
-const server = app.listen(config.port, config.host, () => {
+const server = app.listen(config.port, config.host, () => { // eslint-disable-line no-unused-vars
     console.log(`AI Call Assistant backend is listening on http://${config.host}:${config.port}`);
 });
 
