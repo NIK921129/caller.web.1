@@ -23,7 +23,6 @@ const conversationSchema = new mongoose.Schema({
     summary: { type: String },
     sentiment: { type: String },
     topics: [String],
-    recordingUrl: { type: String }
 }, {
     timestamps: true // Adds createdAt and updatedAt fields
 });

@@ -1,21 +1,5 @@
-class APIClient {
-    constructor(baseURL = '') {
-        this.baseURL = baseURL;
-    }
-
-    async post(endpoint, data) {
-        const response = await fetch(`${this.baseURL}${endpoint}`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(data),
-        });
-        if (!response.ok) {
-            const errorData = await response.json().catch(() => ({ message: `API Error: ${response.status}` }));
-            throw new Error(errorData.message);
-        }
-        return response.json();
-    }
-}
+// Import the shared APIClient module
+import APIClient from './apiClient.js';
 
 const apiBaseUrl = 'https://caller-web-1.onrender.com';
 const api = new APIClient(apiBaseUrl);
@@ -33,6 +17,7 @@ class LoginPage {
         this.form.addEventListener('submit', async (e) => {
             e.preventDefault();
             await this.handleLogin();
+            // Note: Signup functionality is not available in this version.
         });
     }
 

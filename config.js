@@ -9,6 +9,9 @@ const config = {
     twilioAuthToken: process.env.TWILIO_AUTH_TOKEN,
     myPhoneNumber: process.env.MY_PHONE_NUMBER,
     callTimeout: process.env.CALL_TIMEOUT || 10,
+    geminiModel: process.env.GEMINI_MODEL || 'gemini-pro',
+    geminiTemperature: parseFloat(process.env.GEMINI_TEMPERATURE) || 0.7,
+    geminiMaxTokens: parseInt(process.env.GEMINI_MAX_TOKENS, 10) || 200,
     geminiApiKey: process.env.GEMINI_API_KEY,
     frontendUrl: process.env.FRONTEND_URL, // e.g., https://caller-web-1.vercel.app
     publicUrl: process.env.PUBLIC_URL, // e.g., https://your-backend.onrender.com

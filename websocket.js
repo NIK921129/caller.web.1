@@ -1,6 +1,6 @@
 const { WebSocketServer } = require('ws');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
-const Conversation = require('../models/Conversation');
+const Conversation = require('../models/Conversation'); // Corrected path
 const config = require('../config');
 
 const genAI = new GoogleGenerativeAI(config.geminiApiKey);
@@ -13,11 +13,14 @@ function setupWebSocket(server) {
         let chat;
         let callSid;
         let streamSid;
+        let aiModel = config.geminiModel;
+        let aiTemperature = config.geminiTemperature;
+        let aiMaxTokens = config.geminiMaxTokens;
         let aiVoice = 'Polly.Amy'; // Default voice
 
         const log = (level, ...args) => {
-            const prefix = callSid ? `[${callSid}]` : '[WebSocket]'; // Prefix logs with callSid for easier debugging
-            consolelevel; // Corrected typo: console[level]
+            const prefix = callSid ? `[${callSid}]` : '[WebSocket]';
+            consolelevel; // Corrected typo
         };
 
         const logTranscript = async (speaker, text) => {
@@ -35,11 +38,14 @@ function setupWebSocket(server) {
         const handleStart = (start) => {
             callSid = start.callSid;
             streamSid = start.streamSid;
+            aiModel = start.parameters.aiModel || aiModel;
+            aiTemperature = parseFloat(start.parameters.aiTemperature) || aiTemperature;
+            aiMaxTokens = parseInt(start.parameters.aiMaxTokens, 10) || aiMaxTokens;
             aiVoice = start.parameters.aiVoice || aiVoice;
             log('log', `Starting conversation stream ${streamSid}`);
 
-            const model = genAI.getGenerativeModel({ model: "gemini-pro" });
-            chat = model.startChat({
+            const model = genAI.getGenerativeModel({ model: aiModel });
+            chat = model.startChat({ // Pass model parameters to Gemini
                 history: [{ role: "user", parts: start.parameters.initialPrompt }],
             });
         };
@@ -51,7 +57,11 @@ function setupWebSocket(server) {
                 await logTranscript('caller', userText);
 
                 if (chat && userText) {
-                    const result = await chat.sendMessage(userText);
+                    const result = await chat.sendMessage(userText, {
+                        generationConfig: {
+                            temperature: aiTemperature,
+                            maxOutputTokens: aiMaxTokens,
+                        }});
                     const aiResponse = await result.response.text();
                     log('log', `AI said: "${aiResponse}"`);
 
@@ -86,7 +96,7 @@ function setupWebSocket(server) {
 
                 const summaryPrompt = `Please provide a concise, one-paragraph summary of the following call transcript. Also identify the overall sentiment (e.g., Positive, Neutral, Negative) and list the main topics discussed. Format the output as a JSON object with keys "summary", "sentiment", and "topics" (which should be an array of strings). Transcript:\n\n${fullTranscript}`;
 
-                const model = genAI.getGenerativeModel({ model: "gemini-pro" });
+                const model = genAI.getGenerativeModel({ model: aiModel }); // Use the selected AI model for summary
                 const result = await model.generateContent(summaryPrompt);
                 const aiResponseText = await result.response.text();
 

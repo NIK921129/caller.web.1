@@ -3,20 +3,20 @@ const express = require('express');
 const twilio = require('twilio');
 const cors = require('cors');
 const mongoose = require('mongoose');
-const helmet = require('helmet'); // Corrected require
-const morgan = require('morgan'); // Corrected require
-const session = require('express-session'); // Corrected require
-const passport = require('passport'); // Corrected require
-const MongoStore = require('connect-mongo'); // Corrected require
+const helmet = require('helmet');
+const morgan = require('morgan');
+const session = require('express-session');
+const passport = require('passport');
+const MongoStore = require('connect-mongo');
 
 // Local Modules
 const config = require('./config');
 const connectDB = require('./db');
 const apiRoutes = require('./routes/api');
 const twilioRoutes = require('./routes/twilio');
-const authRoutes = require('./routes/auth');
-const { isAuthenticated } = require('./middleware/auth');
-const setupWebSocket = require('./services/websocket');
+const authRoutes = require('./routes/auth'); // Corrected require
+const { isAuthenticated } = require('./middleware/auth'); // Corrected require
+const setupWebSocket = require('./services/websocket'); // Corrected require
 require('./services/passport');
 
 // Connect to Database
@@ -36,6 +36,9 @@ const corsOptions = {
 app.use(cors(corsOptions));
 
 // Security and Logging Middleware
+// Serve static files from the 'frontend' directory
+app.use(express.static('frontend'));
+
 app.use(helmet()); // Set security-related HTTP response headers
 app.use(morgan('dev')); // Log HTTP requests to the console
 
@@ -67,10 +70,10 @@ const twilioWebhookMiddleware = twilio.webhook(config.twilioAuthToken, { url: `$
 app.use('/twilio', twilioWebhookMiddleware, twilioRoutes);
 
 // Auth routes
-app.use('/auth', authRoutes); // Assuming authRoutes is correctly defined elsewhere
+app.use('/auth', authRoutes);
 
 // API routes
-app.use('/api/v1', isAuthenticated, apiRoutes); // Assuming isAuthenticated is correctly defined
+app.use('/api/v1', isAuthenticated, apiRoutes);
 
 // Global Error Handler for API routes
 app.use((err, req, res, next) => {

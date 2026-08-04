@@ -110,6 +110,20 @@ router.put('/settings', async (req, res, next) => {
     }
 });
 
+// DELETE /api/v1/settings/all - New endpoint to reset settings
+router.delete('/settings/all', async (req, res, next) => {
+    try {
+        // Remove all dynamic settings from the database
+        await Setting.deleteMany({});
+        // In a real app, you might want to clear a config cache here
+        res.status(200).json({ message: 'All settings reset to defaults.' });
+    } catch (error) {
+        next(error);
+    }
+});
+
+
+
 // GET /api/v1/health/status
 router.get('/health/status', async (req, res, next) => {
     const status = {

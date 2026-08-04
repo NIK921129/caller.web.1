@@ -1,43 +1,5 @@
-class APIClient {
-    constructor(baseURL = '') {
-        this.baseURL = baseURL;
-    }
-
-    async get(endpoint) {
-        const response = await fetch(`${this.baseURL}${endpoint}`);
-        if (response.status === 401) {
-            window.location.href = '/login.html';
-        }
-        if (!response.ok) throw new Error(`API Error: ${response.statusText}`);
-        return response.json();
-    }
-
-    async post(endpoint, data) {
-        const response = await fetch(`${this.baseURL}${endpoint}`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(data),
-        });
-        if (response.status === 401) {
-            window.location.href = '/login.html';
-        }
-        if (!response.ok) throw new Error(`API Error: ${response.statusText}`);
-        return response.json();
-    }
-
-    async put(endpoint, data) {
-        const response = await fetch(`${this.baseURL}${endpoint}`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(data),
-        });
-        if (response.status === 401) {
-            window.location.href = '/login.html';
-        }
-        if (!response.ok) throw new Error(`API Error: ${response.statusText}`);
-        return response.json();
-    }
-}
+// Import the shared APIClient module
+import APIClient from './apiClient.js';
 
 // The full URL of your deployed backend on Render
 const apiBaseUrl = 'https://caller-web-1.onrender.com';
@@ -80,6 +42,9 @@ class Dashboard {
         this.avgDurationEl = document.getElementById('avg-duration');
         this.todayCallsEl = document.getElementById('today-calls');
         this.tableContainer = document.querySelector('.conversations');
+        this.statsLastUpdatedEl = document.getElementById('stats-last-updated'); // New element for last updated timestamp
+        this.clearFiltersBtn = document.getElementById('clear-filters-btn'); // New element for clear filters button
+
         this.logoutBtn = document.getElementById('logout-btn');
     }
 
@@ -130,6 +95,13 @@ class Dashboard {
             this.loadConversations(true);
         });
 
+        // Clear filters button
+        this.clearFiltersBtn.addEventListener('click', () => {
+            this.resetFilters();
+            this.currentPage = 1;
+            this.loadConversations();
+        });
+
         // Modal close
         this.modalCloseBtn.addEventListener('click', () => this.closeModal());
 
@@ -148,12 +120,45 @@ class Dashboard {
         this.logoutBtn.addEventListener('click', async (e) => {
             e.preventDefault();
             try {
-                await authApi.post('/auth/logout'); // Use authApi for logout
-                window.location.href = '/login.html';
+                const response = await authApi.post('/auth/logout'); // Use authApi for logout
+                if (response.message === 'Logout successful.') {
+                    window.location.href = '/login.html';
+                } else {
+                    console.error('Logout failed:', response.message);
+                    // Optionally, show an error message to the user
+                }
             } catch (error) {
                 console.error('Logout failed:', error);
+                // Optionally, show an error message to the user
             }
         });
+
+        // Event listener for copy button (delegated)
+        this.conversationDetailContainer.addEventListener('click', async (e) => {
+            if (e.target.classList.contains('copy-btn')) {
+                const numberToCopy = e.target.dataset.number;
+                try {
+                    await navigator.clipboard.writeText(numberToCopy);
+                    alert('Caller number copied to clipboard!');
+                } catch (err) {
+                    console.error('Failed to copy text to clipboard:', err);
+                    alert('Failed to copy number. Please try again or copy manually.');
+                }
+            }
+        });
+    }
+
+    resetFilters() {
+        this.filters = {
+            search: '',
+            fromDate: '',
+            toDate: '',
+            status: 'all'
+        };
+        this.searchInput.value = '';
+        this.dateFromInput.value = '';
+        this.dateToInput.value = '';
+        this.statusFilter.value = 'all';
     }
 
     async loadStats() {
@@ -163,10 +168,11 @@ class Dashboard {
             this.aiHandledEl.textContent = stats.ai_handled ?? 0;
             this.avgDurationEl.textContent = stats.avg_duration ?? '0:00';
             this.todayCallsEl.textContent = stats.last_24h ?? 0;
+            this.statsLastUpdatedEl.textContent = `Last updated: ${new Date().toLocaleTimeString()}`;
         } catch (error) {
             console.error('Error loading stats:', error);
-            // Optionally, show an error state on the cards
             [this.totalCallsEl, this.aiHandledEl, this.avgDurationEl, this.todayCallsEl].forEach(el => el.textContent = 'Error');
+            this.statsLastUpdatedEl.textContent = 'Error updating';
         }
     }
 
@@ -201,11 +207,13 @@ class Dashboard {
         }
     }
 
-    renderConversations(conversations) {
-        this.conversationsBody.innerHTML = '';
-        if (conversations.length === 0) {
-            this.conversationsBody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:40px;">No conversations found</td></tr>';
-            return;
+    renderConversations(conversations) { // Renamed from renderConversations to handle initial render
+        if (!conversations || conversations.length === 0) { // Check if conversations is empty
+            this.conversationsBody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:40px;">No conversations found</td></tr>'; // Display message if no conversations
+            return; // Exit function
+        }
+        if (this.currentPage === 1 && !this.conversationsBody.innerHTML.includes('skeleton-row')) {
+             this.conversationsBody.innerHTML = '';
         }
 
         this.appendConversations(conversations);
@@ -238,6 +246,7 @@ class Dashboard {
     async viewConversation(conversationId) {
         this.openModal();
         this.conversationDetailContainer.innerHTML = '<p>Loading details...</p>';
+
         try {
             const conversation = await api.get(`/conversations/${conversationId}`);
             this.renderConversationDetail(conversation);
@@ -248,10 +257,12 @@ class Dashboard {
     }
 
     renderConversationDetail(conversation) {
+        const formattedCaller = this.formatCaller(conversation.caller_number);
         this.conversationDetailContainer.innerHTML = `
             <h2>Conversation Details</h2>
             <div class="call-info">
-                <p><strong>Caller:</strong> ${this.formatCaller(conversation.caller_number)}</p>
+                <p><strong>Call SID:</strong> ${conversation.callSid || 'N/A'}</p>
+                <p><strong>Caller:</strong> ${formattedCaller} <button class="copy-btn" data-number="${conversation.caller_number}" title="Copy number">📋</button></p> 
                 <p><strong>Date:</strong> ${this.formatDate(conversation.start_time)}</p>
                 <p><strong>Duration:</strong> ${this.formatDuration(conversation.duration_seconds ?? 0)}</p>
                 <p><strong>Status:</strong> ${conversation.status || 'N/A'}</p>
@@ -262,19 +273,19 @@ class Dashboard {
                     <h3>AI Summary</h3>
                     <p>${conversation.summary}</p>
                     ${conversation.sentiment ? `<p><strong>Sentiment:</strong> ${conversation.sentiment}</p>` : ''}
-                    ${conversation.topics ? `<p><strong>Topics:</strong> ${conversation.topics.join(', ')}</p>` : ''}
+                    ${conversation.topics && conversation.topics.length > 0 ? `<p><strong>Topics:</strong> ${conversation.topics.join(', ')}</p>` : ''}
                 </div>
             ` : ''}
             
             <div class="transcript">
                 <h3>Transcript</h3>
-                ${(conversation.transcript || []).map(entry => `
+                ${(conversation.transcript || []).length > 0 ? (conversation.transcript || []).map(entry => `
                     <div class="message ${entry.speaker}">
                         <span class="speaker">${entry.speaker === 'caller' ? '👤 Caller' : '🤖 AI Agent'}</span>
                         <span class="time">${this.formatTime(entry.timestamp)}</span>
                         <p>${entry.text}</p>
                     </div>
-                `).join('')}
+                `).join('') : '<p>No transcript available.</p>'}
             </div>
         `;
     }
@@ -373,4 +384,3 @@ class Dashboard {
 // Initialize dashboard when DOM is ready
 document.addEventListener('DOMContentLoaded', () => {
     new Dashboard();
-});

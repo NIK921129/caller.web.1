@@ -32,6 +32,7 @@ router.post('/voice', async (req, res, next) => {
         console.log(`Created conversation record for ${CallSid}.`);
     } catch (error) {
         console.error(`Error creating conversation record for ${CallSid}:`, error);
+        return next(error); // Propagate the error to the global error handler
     }
 
     const myPhoneNumber = appSettings.my_phone_number || config.myPhoneNumber;
@@ -42,9 +43,8 @@ router.post('/voice', async (req, res, next) => {
         callerId: req.body.From,
         timeout: callTimeout,
         action: '/twilio/handle-no-answer',
-        method: 'POST',
-        record: 'record-from-answer',
-        recordingStatusCallback: '/twilio/handle-recording',
+        method: 'POST'
+        // Removed call recording options
     });
     dial.number({ statusCallback: '/twilio/handle-dial-status', statusCallbackEvent: 'completed' }, myPhoneNumber);
 
@@ -65,13 +65,16 @@ router.post('/handle-no-answer', async (req, res) => {
     }
 
     const twiml = new twilio.twiml.VoiceResponse();
-    const settings = await Setting.find({ key: { $in: ['ai_prompt', 'ai_greeting', 'ai_voice'] } });
+    const settings = await Setting.find({ key: { $in: ['ai_prompt', 'ai_greeting', 'ai_voice', 'ai_model', 'ai_temperature', 'ai_max_tokens'] } });
     const appSettings = settings.reduce((acc, setting) => {
         acc[setting.key] = setting.value;
         return acc;
     }, {});
 
     const initialPrompt = appSettings.ai_prompt || "You are a helpful AI assistant. Your goal is to take a message.";
+    const aiModel = appSettings.ai_model || config.geminiModel;
+    const aiTemperature = appSettings.ai_temperature !== undefined ? appSettings.ai_temperature : config.geminiTemperature;
+    const aiMaxTokens = appSettings.ai_max_tokens || config.geminiMaxTokens;
     const greeting = appSettings.ai_greeting || "Hello, you've reached the AI assistant. Please state your name and the reason for your call after the beep.";
     const voice = appSettings.ai_voice || 'Polly.Amy';
     console.log("Using AI prompt:", initialPrompt.substring(0, 50) + "...");
@@ -86,6 +89,9 @@ router.post('/handle-no-answer', async (req, res) => {
     stream.parameter({ name: 'encoding', value: 'audio/mulaw' });
     stream.parameter({ name: 'initialPrompt', value: initialPrompt });
     stream.parameter({ name: 'callSid', value: callSid });
+    stream.parameter({ name: 'aiModel', value: aiModel });
+    stream.parameter({ name: 'aiTemperature', value: aiTemperature });
+    stream.parameter({ name: 'aiMaxTokens', value: aiMaxTokens });
     stream.parameter({ name: 'aiVoice', value: voice }); // Pass the selected voice to the WebSocket
 
     res.type('text/xml');
