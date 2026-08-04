@@ -45,6 +45,8 @@ const api = new APIClient(`${apiBaseUrl}/api/v1`);
 class SettingsPage {
     constructor() {
         this.promptTextarea = document.getElementById('ai-prompt');
+        this.greetingTextarea = document.getElementById('ai-greeting');
+        this.voiceSelect = document.getElementById('ai-voice');
         this.myPhoneNumberInput = document.getElementById('my-phone-number');
         this.callTimeoutInput = document.getElementById('call-timeout');
         this.saveButton = document.getElementById('save-settings-btn');
@@ -83,6 +85,8 @@ class SettingsPage {
         try {
             const settings = await api.get('/settings');
             this.promptTextarea.value = settings.ai_prompt || '';
+            this.greetingTextarea.value = settings.ai_greeting || "Hello, you've reached the AI assistant. Please state your name and the reason for your call after the beep.";
+            this.voiceSelect.value = settings.ai_voice || 'Polly.Amy';
             this.myPhoneNumberInput.value = settings.my_phone_number || '';
             this.callTimeoutInput.value = settings.call_timeout || '10';
         } catch (error) {
@@ -95,6 +99,8 @@ class SettingsPage {
     async saveSettings() {
         const settingsToSave = {
             ai_prompt: this.promptTextarea.value,
+            ai_greeting: this.greetingTextarea.value,
+            ai_voice: this.voiceSelect.value,
             my_phone_number: this.myPhoneNumberInput.value,
             call_timeout: this.callTimeoutInput.value
         };

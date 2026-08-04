@@ -48,6 +48,23 @@
                     </div>
                     <div class="card__body">
                         <div class="form-group">
+                            <label for="ai-greeting">Initial Greeting</label>
+                            <p class="description">The first thing the AI says when it answers the call.</p>
+                            <textarea id="ai-greeting" class="form-control" rows="3" placeholder="e.g., Hello, you've reached the AI assistant. Please state your name and the reason for your call after the beep."></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label for="ai-voice">AI Voice</label>
+                            <p class="description">The voice your AI assistant will use to speak.</p>
+                            <select id="ai-voice" class="form-control">
+                                <option value="Polly.Amy">Amy (British English, Female)</option>
+                                <option value="Polly.Emma">Emma (British English, Female)</option>
+                                <option value="Polly.Brian">Brian (British English, Male)</option>
+                                <option value="Polly.Joanna">Joanna (US English, Female)</option>
+                                <option value="Polly.Matthew">Matthew (US English, Male)</option>
+                                <option value="Polly.Salli">Salli (US English, Female)</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
                             <label for="ai-prompt">System Prompt</label>
                             <textarea id="ai-prompt" class="form-control" rows="10" placeholder="e.g., You are a friendly and professional assistant named Echo. Your goal is to take a message and find out the caller's name and reason for calling..."></textarea>
                         </div>

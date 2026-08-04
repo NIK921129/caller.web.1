@@ -65,11 +65,18 @@ router.post('/handle-no-answer', async (req, res) => {
     }
 
     const twiml = new twilio.twiml.VoiceResponse();
-    const promptSetting = await Setting.findOne({ key: 'ai_prompt' });
-    const initialPrompt = promptSetting?.value || "You are a helpful AI assistant. Your goal is to take a message.";
+    const settings = await Setting.find({ key: { $in: ['ai_prompt', 'ai_greeting', 'ai_voice'] } });
+    const appSettings = settings.reduce((acc, setting) => {
+        acc[setting.key] = setting.value;
+        return acc;
+    }, {});
+
+    const initialPrompt = appSettings.ai_prompt || "You are a helpful AI assistant. Your goal is to take a message.";
+    const greeting = appSettings.ai_greeting || "Hello, you've reached the AI assistant. Please state your name and the reason for your call after the beep.";
+    const voice = appSettings.ai_voice || 'Polly.Amy';
     console.log("Using AI prompt:", initialPrompt.substring(0, 50) + "...");
 
-    twiml.say({ voice: 'Polly.Amy' }, "Hello, you've reached the AI assistant. Please state your name and the reason for your call after the beep.");
+    twiml.say({ voice: voice }, greeting);
 
     const connect = twiml.connect({ action: '/twilio/handle-call-status', method: 'POST' });
     const stream = connect.stream({
