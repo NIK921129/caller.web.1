@@ -1,6 +1,6 @@
 const { WebSocketServer } = require('ws');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
-const Conversation = require('./models/Conversation');
+const Conversation = require('../models/Conversation'); // Corrected path
 const config = require('../config');
 
 const genAI = new GoogleGenerativeAI(config.geminiApiKey);
