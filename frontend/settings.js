@@ -41,6 +41,7 @@ class APIClient {
 
 const apiBaseUrl = 'https://caller-web-1.onrender.com';
 const api = new APIClient(`${apiBaseUrl}/api/v1`);
+const authApi = new APIClient(apiBaseUrl); // For authentication routes like /auth/logout
 
 class SettingsPage {
     constructor() {
@@ -72,7 +73,7 @@ class SettingsPage {
             this.logoutBtn.addEventListener('click', async (e) => {
                 e.preventDefault();
                 try {
-                    await api.post('/auth/logout');
+                    await authApi.post('/auth/logout'); // Use authApi for logout
                     window.location.href = '/login.html';
                 } catch (error) {
                     console.error('Logout failed:', error);

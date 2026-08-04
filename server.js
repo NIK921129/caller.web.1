@@ -16,6 +16,7 @@ const apiRoutes = require('./routes/api');
 const twilioRoutes = require('./routes/twilio');
 const authRoutes = require('./routes/auth');
 const { isAuthenticated } = require('./middleware/auth');
+const setupWebSocket = require('./services/websocket');
 require('./services/passport');
 
 // Connect to Database

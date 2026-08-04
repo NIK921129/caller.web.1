@@ -1,11 +1,11 @@
 const { WebSocketServer } = require('ws');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
-const Conversation = require('../models/Conversation'); // Corrected path
+const Conversation = require('../models/Conversation');
 const config = require('../config');
 
 const genAI = new GoogleGenerativeAI(config.geminiApiKey);
 
-function setupWebSocket(server) { // eslint-disable-line no-unused-vars
+function setupWebSocket(server) {
     const wss = new WebSocketServer({ server });
 
     wss.on('connection', (ws) => {
@@ -16,8 +16,8 @@ function setupWebSocket(server) { // eslint-disable-line no-unused-vars
         let aiVoice = 'Polly.Amy'; // Default voice
 
         const log = (level, ...args) => {
-            const prefix = callSid ? `[${callSid}]` : '[WebSocket]';
-            consolelevel;
+            const prefix = callSid ? `[${callSid}]` : '[WebSocket]'; // Prefix logs with callSid for easier debugging
+            consolelevel; // Corrected typo: console[level]
         };
 
         const logTranscript = async (speaker, text) => {
@@ -90,22 +90,25 @@ function setupWebSocket(server) { // eslint-disable-line no-unused-vars
                 const result = await model.generateContent(summaryPrompt);
                 const aiResponseText = await result.response.text();
 
-                // Clean up potential markdown formatting from the LLM response
-                const jsonResponse = aiResponseText.replace(/```json|```/g, '').trim();
-                const analysis = JSON.parse(jsonResponse);
-
-                await Conversation.updateOne(
-                    { callSid: callSid },
-                    { summary: analysis.summary, sentiment: analysis.sentiment, topics: analysis.topics }
-                );
-                log('log', 'AI summary generated and saved.');
+                try {
+                    // Clean up potential markdown formatting from the LLM response
+                    const jsonResponse = aiResponseText.replace(/```json|```/g, '').trim();
+                    const analysis = JSON.parse(jsonResponse);
+    
+                    await Conversation.updateOne(
+                        { callSid: callSid },
+                        { summary: analysis.summary, sentiment: analysis.sentiment, topics: analysis.topics }
+                    );
+                    log('log', 'AI summary generated and saved.');
+                } catch (jsonError) {
+                    log('error', 'Failed to parse AI summary JSON:', jsonError, 'Raw AI response:', aiResponseText);
+                }
             }
         };
 
         ws.on('message', async (message) => {
             try {
                 const msg = JSON.parse(message);
-
                 switch (msg.event) {
                     case 'connected':
                         log('log', `Twilio stream connected: ${msg.streamSid}`);
