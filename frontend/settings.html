@@ -21,34 +21,42 @@
         </header>
 
         <main>
-            <section class="settings-form">
-                <h2>AI Configuration</h2>
-                <p class="subtitle">Define the personality and instructions for your AI assistant.</p>
-                <textarea id="ai-prompt" placeholder="e.g., You are a friendly and professional assistant named Echo. Your goal is to take a message and find out the caller's name and reason for calling..."></textarea>
-                <button id="save-prompt-btn">Save Prompt</button>
-                <p id="status-message"></p>
-            </section>
-        </main>
-
-        <section class="connectivity-status">
-            <h2>Connectivity Status</h2>
-            <p class="subtitle">Check the backend's connection to required services.</p>
-            <div class="status-table">
-                <div class="status-row">
-                    <div class="service-name">Database (MongoDB)</div>
-                    <div class="service-status" id="status-database">--</div>
-                </div>
-                <div class="status-row">
-                    <div class="service-name">Telephony (Twilio)</div>
-                    <div class="service-status" id="status-twilio">--</div>
-                </div>
-                <div class="status-row">
-                    <div class="service-name">AI Provider (Gemini)</div>
-                    <div class="service-status" id="status-gemini">--</div>
-                </div>
+            <div class="content-grid">
+                <section class="card settings-card">
+                    <div class="card__header">
+                        <h2>AI Configuration</h2>
+                        <p>Define the personality and instructions for your AI assistant.</p>
+                    </div>
+                    <div class="card__body">
+                        <div class="form-group">
+                            <label for="ai-prompt">AI System Prompt</label>
+                            <textarea id="ai-prompt" class="form-control" rows="10" placeholder="e.g., You are a friendly and professional assistant named Echo. Your goal is to take a message and find out the caller's name and reason for calling..."></textarea>
+                        </div>
+                    </div>
+                    <div class="card__footer">
+                        <p id="status-message" class="status-message"></p>
+                        <button id="save-prompt-btn" class="btn btn-primary">Save Prompt</button>
+                    </div>
+                </section>
+    
+                <section class="card connectivity-card">
+                    <div class="card__header">
+                        <h2>Connectivity Status</h2>
+                        <p>Check the backend's connection to required services.</p>
+                    </div>
+                    <div class="card__body">
+                        <ul class="status-list">
+                            <li class="status-list__item"><span>Database (MongoDB)</span><span id="status-database" class="status-badge">--</span></li>
+                            <li class="status-list__item"><span>Telephony (Twilio)</span><span id="status-twilio" class="status-badge">--</span></li>
+                            <li class="status-list__item"><span>AI Provider (Gemini)</span><span id="status-gemini" class="status-badge">--</span></li>
+                        </ul>
+                    </div>
+                    <div class="card__footer">
+                        <button id="check-status-btn" class="btn">Check Status</button>
+                    </div>
+                </section>
             </div>
-            <button id="check-status-btn">Check Status</button>
-        </section>
+        </main>
     </div>
     <script src="settings.js"></script>
 </body>

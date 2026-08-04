@@ -1,4 +1,4 @@
-er class APIClient {
+class APIClient {
     constructor(baseURL = '') {
         this.baseURL = baseURL;
     }
