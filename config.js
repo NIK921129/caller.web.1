@@ -25,6 +25,11 @@ const config = {
 const requiredConfig = ['mongoUri', 'twilioAccountSid', 'twilioAuthToken', 'geminiApiKey', 'myPhoneNumber', 'publicUrl', 'sessionSecret', 'adminUsername', 'adminPassword'];
 const missingConfig = requiredConfig.filter(key => !config[key]);
 
+// --- TEMPORARY DEBUG LOGS FOR RENDER DEPLOYMENT ---
+console.log('--- Environment Variables Check (from config.js) ---');
+console.log('PUBLIC_URL (process.env):', process.env.PUBLIC_URL);
+console.log('SESSION_SECRET (process.env):', process.env.SESSION_SECRET);
+console.log('----------------------------------------------------');
 if (missingConfig.length > 0) {
     console.error(`FATAL ERROR: Missing required environment variables: ${missingConfig.join(', ')}`);
     process.exit(1);
