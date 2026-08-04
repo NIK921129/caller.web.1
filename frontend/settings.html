@@ -16,12 +16,31 @@
             <nav>
                 <a href="/">Dashboard</a>
                 <a href="/settings.html" class="active">Settings</a>
-                <a href="#">Logs</a>
-            </nav>
+                <a href="#" id="logout-btn">Logout</a>
+            </nav> 
         </header>
 
         <main>
             <div class="content-grid">
+                <section class="card settings-card">
+                    <div class="card__header">
+                        <h2>General Settings</h2>
+                        <p>Configure core application behavior.</p>
+                    </div>
+                    <div class="card__body">
+                        <div class="form-group">
+                            <label for="my-phone-number">Forwarding Phone Number</label>
+                            <p class="description">The personal number Twilio will forward calls to. Must be in E.164 format (e.g., +14155552671).</p>
+                            <input type="tel" id="my-phone-number" class="form-control" placeholder="+12345678900">
+                        </div>
+                        <div class="form-group">
+                            <label for="call-timeout">Call Timeout (seconds)</label>
+                            <p class="description">How long to ring your number before the AI takes over.</p>
+                            <input type="number" id="call-timeout" class="form-control" min="5" max="60" placeholder="10">
+                        </div>
+                    </div>
+                </section>
+
                 <section class="card settings-card">
                     <div class="card__header">
                         <h2>AI Configuration</h2>
@@ -29,13 +48,13 @@
                     </div>
                     <div class="card__body">
                         <div class="form-group">
-                            <label for="ai-prompt">AI System Prompt</label>
+                            <label for="ai-prompt">System Prompt</label>
                             <textarea id="ai-prompt" class="form-control" rows="10" placeholder="e.g., You are a friendly and professional assistant named Echo. Your goal is to take a message and find out the caller's name and reason for calling..."></textarea>
                         </div>
                     </div>
                     <div class="card__footer">
-                        <p id="status-message" class="status-message"></p>
-                        <button id="save-prompt-btn" class="btn btn-primary">Save Prompt</button>
+                        <p id="settings-status-message" class="status-message"></p>
+                        <button id="save-settings-btn" class="btn btn-primary">Save All Settings</button>
                     </div>
                 </section>
     
@@ -60,4 +79,5 @@
     </div>
     <script src="settings.js"></script>
 </body>
+
 </html>

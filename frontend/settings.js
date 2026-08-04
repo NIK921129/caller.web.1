@@ -5,7 +5,10 @@ class APIClient {
 
     async get(endpoint) {
         const response = await fetch(`${this.baseURL}${endpoint}`);
-        if (!response.ok) throw new Error(`API Error: ${response.status}`);
+        if (response.status === 401) {
+            window.location.href = '/login.html';
+        }
+        if (!response.ok) throw new Error(`API Error: ${response.statusText}`);
         return response.json();
     }
 
@@ -15,7 +18,23 @@ class APIClient {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(data),
         });
-        if (!response.ok) throw new Error(`API Error: ${response.status}`);
+        if (response.status === 401) {
+            window.location.href = '/login.html';
+        }
+        if (!response.ok) throw new Error(`API Error: ${response.statusText}`);
+        return response.json();
+    }
+
+    async post(endpoint, data) {
+        const response = await fetch(`${this.baseURL}${endpoint}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data),
+        });
+        if (response.status === 401) {
+            window.location.href = '/login.html';
+        }
+        if (!response.ok) throw new Error(`API Error: ${response.statusText}`);
         return response.json();
     }
 }
@@ -26,52 +45,93 @@ const api = new APIClient(`${apiBaseUrl}/api/v1`);
 class SettingsPage {
     constructor() {
         this.promptTextarea = document.getElementById('ai-prompt');
-        this.saveButton = document.getElementById('save-prompt-btn');
-        this.statusMessage = document.getElementById('status-message');
+        this.myPhoneNumberInput = document.getElementById('my-phone-number');
+        this.callTimeoutInput = document.getElementById('call-timeout');
+        this.saveButton = document.getElementById('save-settings-btn');
+        this.statusMessage = document.getElementById('settings-status-message');
 
         // Connectivity Status Elements
         this.checkStatusBtn = document.getElementById('check-status-btn');
         this.dbStatusEl = document.getElementById('status-database');
         this.twilioStatusEl = document.getElementById('status-twilio');
         this.geminiStatusEl = document.getElementById('status-gemini');
+        this.logoutBtn = document.getElementById('logout-btn');
 
         this.init();
     }
 
     init() {
-        this.loadPrompt();
-        this.saveButton.addEventListener('click', () => this.savePrompt());
+        this.loadSettings();
+        this.saveButton.addEventListener('click', () => this.saveSettings());
         if (this.checkStatusBtn) {
             this.checkStatusBtn.addEventListener('click', () => this.checkConnectivity());
         }
+        if (this.logoutBtn) {
+            this.logoutBtn.addEventListener('click', async (e) => {
+                e.preventDefault();
+                try {
+                    await api.post('/auth/logout');
+                    window.location.href = '/login.html';
+                } catch (error) {
+                    console.error('Logout failed:', error);
+                }
+            });
+        }
     }
 
-    async loadPrompt() {
+    async loadSettings() {
         try {
-            const data = await api.get('/settings/prompt');
-            this.promptTextarea.value = data.prompt || '';
+            const settings = await api.get('/settings');
+            this.promptTextarea.value = settings.ai_prompt || '';
+            this.myPhoneNumberInput.value = settings.my_phone_number || '';
+            this.callTimeoutInput.value = settings.call_timeout || '10';
         } catch (error) {
-            console.error('Failed to load prompt:', error);
-            this.statusMessage.textContent = 'Error loading prompt.';
+            console.error('Failed to load settings:', error);
+            this.statusMessage.textContent = 'Error loading settings.';
             this.statusMessage.className = 'error';
         }
     }
 
-    async savePrompt() {
-        const newPrompt = this.promptTextarea.value;
+    async saveSettings() {
+        const settingsToSave = {
+            ai_prompt: this.promptTextarea.value,
+            my_phone_number: this.myPhoneNumberInput.value,
+            call_timeout: this.callTimeoutInput.value
+        };
+
+        // Basic validation
+        if (!/^\+[1-9]\d{1,14}$/.test(settingsToSave.my_phone_number)) {
+            this.statusMessage.textContent = 'Please enter a valid phone number in E.164 format (e.g., +14155552671).';
+            this.statusMessage.className = 'status-message error';
+            return;
+        }
+        const timeout = parseInt(settingsToSave.call_timeout, 10);
+        if (isNaN(timeout) || timeout < 5 || timeout > 60) {
+            this.statusMessage.textContent = 'Call Timeout must be between 5 and 60 seconds.';
+            this.statusMessage.className = 'status-message error';
+            return;
+        }
+
         this.saveButton.textContent = 'Saving...';
         this.saveButton.disabled = true;
+        this.statusMessage.textContent = '';
+        this.statusMessage.className = 'status-message';
+
         try {
-            await api.put('/settings/prompt', { prompt: newPrompt });
-            this.statusMessage.textContent = 'Prompt saved successfully!';
-            this.statusMessage.className = 'success';
+            await api.put('/settings', settingsToSave);
+            this.statusMessage.textContent = 'Settings saved successfully!';
+            this.statusMessage.className = 'status-message success';
         } catch (error) {
-            this.statusMessage.textContent = 'Failed to save prompt.';
-            this.statusMessage.className = 'error';
+            console.error('Failed to save settings:', error);
+            this.statusMessage.textContent = 'Failed to save settings.';
+            this.statusMessage.className = 'status-message error';
         } finally {
-            this.saveButton.textContent = 'Save Prompt';
+            this.saveButton.textContent = 'Save All Settings';
             this.saveButton.disabled = false;
-            setTimeout(() => this.statusMessage.textContent = '', 3000);
+            setTimeout(() => {
+                this.statusMessage.textContent = '';
+                this.statusMessage.className = 'status-message';
+            }, 3000);
         }
     }
 
@@ -87,7 +147,7 @@ class SettingsPage {
 
         // Reset statuses
         Object.values(statusElements).forEach(el => {
-            el.innerHTML = `<span class="status-checking">Checking...</span>`;
+            el.innerHTML = `<span class="status-badge checking">Checking...</span>`;
         });
 
         try {
@@ -95,14 +155,14 @@ class SettingsPage {
             for (const [service, data] of Object.entries(statuses)) {
                 if (statusElements[service]) {
                     const statusClass = data.status === 'ok' ? 'status-ok' : 'status-error';
-                    statusElements[service].innerHTML = `<span class="${statusClass}">${data.message}</span>`;
+                    statusElements[service].innerHTML = `<span class="status-badge ${statusClass}">${data.message}</span>`;
                 }
             }
         } catch (error) {
             // The fetch itself can fail, or the API returns a 503 which is caught here
             console.error('Failed to fetch connectivity status:', error);
             Object.values(statusElements).forEach(el => {
-                el.innerHTML = `<span class="status-error">Failed to get status</span>`;
+                el.innerHTML = `<span class="status-badge status-error">Failed to get status</span>`;
             });
         } finally {
             this.checkStatusBtn.textContent = 'Check Status';

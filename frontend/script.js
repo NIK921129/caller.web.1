@@ -5,7 +5,10 @@ class APIClient {
 
     async get(endpoint) {
         const response = await fetch(`${this.baseURL}${endpoint}`);
-        if (!response.ok) throw new Error(`API Error: ${response.status}`);
+        if (response.status === 401) {
+            window.location.href = '/login.html';
+        }
+        if (!response.ok) throw new Error(`API Error: ${response.statusText}`);
         return response.json();
     }
 
@@ -15,7 +18,10 @@ class APIClient {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(data),
         });
-        if (!response.ok) throw new Error(`API Error: ${response.status}`);
+        if (response.status === 401) {
+            window.location.href = '/login.html';
+        }
+        if (!response.ok) throw new Error(`API Error: ${response.statusText}`);
         return response.json();
     }
 
@@ -25,7 +31,10 @@ class APIClient {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(data),
         });
-        if (!response.ok) throw new Error(`API Error: ${response.status}`);
+        if (response.status === 401) {
+            window.location.href = '/login.html';
+        }
+        if (!response.ok) throw new Error(`API Error: ${response.statusText}`);
         return response.json();
     }
 }
@@ -70,6 +79,7 @@ class Dashboard {
         this.avgDurationEl = document.getElementById('avg-duration');
         this.todayCallsEl = document.getElementById('today-calls');
         this.tableContainer = document.querySelector('.conversations');
+        this.logoutBtn = document.getElementById('logout-btn');
     }
 
     init() {
@@ -131,6 +141,17 @@ class Dashboard {
         this.conversationsBody.addEventListener('click', (e) => {
             const viewButton = e.target.closest('.btn-view');
             if (viewButton) this.viewConversation(viewButton.dataset.id);
+        });
+
+        // Logout button
+        this.logoutBtn.addEventListener('click', async (e) => {
+            e.preventDefault();
+            try {
+                await api.post('/auth/logout');
+                window.location.href = '/login.html';
+            } catch (error) {
+                console.error('Logout failed:', error);
+            }
         });
     }
 
@@ -214,8 +235,8 @@ class Dashboard {
     }
 
     async viewConversation(conversationId) {
-        this.conversationDetailContainer.innerHTML = '<p>Loading details...</p>';
         this.openModal();
+        this.conversationDetailContainer.innerHTML = '<p>Loading details...</p>';
         try {
             const conversation = await api.get(`/conversations/${conversationId}`);
             this.renderConversationDetail(conversation);

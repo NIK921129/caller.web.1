@@ -7,7 +7,19 @@ const config = require('../config');
 const router = express.Router();
 
 // Main entry point for incoming calls.
-router.post('/voice', async (req, res) => {
+router.post('/voice', async (req, res, next) => {
+    let appSettings;
+    try {
+        const settings = await Setting.find({ key: { $in: ['my_phone_number', 'call_timeout'] } });
+        appSettings = settings.reduce((acc, setting) => {
+            acc[setting.key] = setting.value;
+            return acc;
+        }, {});
+    } catch (error) {
+        console.error("Error fetching settings from DB:", error);
+        return next(error);
+    }
+
     const { CallSid, From } = req.body;
     console.log(`Incoming call from: ${From} (SID: ${CallSid}). Forwarding to personal number.`);
 
@@ -22,16 +34,19 @@ router.post('/voice', async (req, res) => {
         console.error(`Error creating conversation record for ${CallSid}:`, error);
     }
 
+    const myPhoneNumber = appSettings.my_phone_number || config.myPhoneNumber;
+    const callTimeout = appSettings.call_timeout || config.callTimeout;
+
     const twiml = new twilio.twiml.VoiceResponse();
     const dial = twiml.dial({
         callerId: req.body.From,
-        timeout: config.callTimeout,
-        action: '/handle-no-answer',
+        timeout: callTimeout,
+        action: '/twilio/handle-no-answer',
         method: 'POST',
         record: 'record-from-answer',
-        recordingStatusCallback: '/handle-recording',
+        recordingStatusCallback: '/twilio/handle-recording',
     });
-    dial.number({ statusCallback: '/handle-dial-status', statusCallbackEvent: 'completed' }, config.myPhoneNumber);
+    dial.number({ statusCallback: '/twilio/handle-dial-status', statusCallbackEvent: 'completed' }, myPhoneNumber);
 
     res.type('text/xml');
     res.send(twiml.toString());
@@ -56,7 +71,7 @@ router.post('/handle-no-answer', async (req, res) => {
 
     twiml.say({ voice: 'Polly.Amy' }, "Hello, you've reached the AI assistant. Please state your name and the reason for your call after the beep.");
 
-    const connect = twiml.connect({ action: '/handle-call-status', method: 'POST' });
+    const connect = twiml.connect({ action: '/twilio/handle-call-status', method: 'POST' });
     const stream = connect.stream({
         url: `wss://${req.headers.host}/`,
         track: 'inbound_track'

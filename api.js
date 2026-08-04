@@ -1,11 +1,15 @@
 const express = require('express');
+const mongoose = require('mongoose');
+const twilio = require('twilio');
+const { GoogleGenerativeAI } = require('@google/generative-ai');
 const Conversation = require('../models/Conversation');
 const Setting = require('../models/Setting');
+const config = require('../config');
 
 const router = express.Router();
 
 // GET /api/v1/conversations/stats
-router.get('/conversations/stats', async (req, res) => {
+router.get('/conversations/stats', async (req, res, next) => {
     try {
         const total_calls = await Conversation.countDocuments();
         const ai_handled = await Conversation.countDocuments({ status: 'ai_handled' });
@@ -24,13 +28,12 @@ router.get('/conversations/stats', async (req, res) => {
 
         res.json({ total_calls, ai_handled, last_24h, avg_duration });
     } catch (error) {
-        console.error('Error fetching stats:', error);
-        res.status(500).json({ error: 'Failed to fetch stats' });
+        next(error);
     }
 });
 
 // GET /api/v1/conversations
-router.get('/conversations', async (req, res) => {
+router.get('/conversations', async (req, res, next) => {
     try {
         const { limit = 20, offset = 0, search, from_date, to_date, status } = req.query;
 
@@ -57,13 +60,12 @@ router.get('/conversations', async (req, res) => {
 
         res.json({ conversations, total });
     } catch (error) {
-        console.error('Error fetching conversations:', error);
-        res.status(500).json({ error: 'Failed to fetch conversations' });
+        next(error);
     }
 });
 
 // GET /api/v1/conversations/:id
-router.get('/conversations/:id', async (req, res) => {
+router.get('/conversations/:id', async (req, res, next) => {
     try {
         const conversation = await Conversation.findById(req.params.id);
         if (!conversation) {
@@ -71,39 +73,72 @@ router.get('/conversations/:id', async (req, res) => {
         }
         res.json(conversation);
     } catch (error) {
-        console.error(`Error fetching conversation ${req.params.id}:`, error);
-        res.status(500).json({ error: 'Failed to fetch conversation details' });
+        next(error);
     }
 });
 
-// GET /api/v1/settings/prompt
-router.get('/settings/prompt', async (req, res) => {
+// GET /api/v1/settings
+router.get('/settings', async (req, res, next) => {
     try {
-        const promptSetting = await Setting.findOne({ key: 'ai_prompt' });
-        res.json({ prompt: promptSetting ? promptSetting.value : '' });
+        const settings = await Setting.find({});
+        const settingsObj = settings.reduce((acc, setting) => {
+            acc[setting.key] = setting.value;
+            return acc;
+        }, {});
+        res.json(settingsObj);
     } catch (error) {
-        console.error('Error fetching prompt:', error);
-        res.status(500).json({ error: 'Failed to fetch prompt' });
+        next(error);
     }
 });
 
-// PUT /api/v1/settings/prompt
-router.put('/settings/prompt', async (req, res) => {
+// PUT /api/v1/settings
+router.put('/settings', async (req, res, next) => {
     try {
-        const { prompt } = req.body;
-        if (typeof prompt !== 'string') {
-            return res.status(400).json({ error: 'Invalid prompt data' });
+        const settings = req.body;
+        const updatePromises = Object.keys(settings).map(key => {
+            return Setting.findOneAndUpdate(
+                { key: key },
+                { $set: { value: settings[key] } },
+                { upsert: true, new: true }
+            );
+        });
+
+        await Promise.all(updatePromises);
+        res.status(200).json({ message: 'Settings updated successfully' });
+    } catch (error) {
+        next(error);
+    }
+});
+
+// GET /api/v1/health/status
+router.get('/health/status', async (req, res, next) => {
+    const status = {
+        database: { status: 'error', message: 'Not connected' },
+        twilio: { status: 'error', message: 'Credentials not verified' },
+        gemini: { status: 'error', message: 'API key not verified' },
+    };
+
+    if (mongoose.connection.readyState === 1) {
+        status.database = { status: 'ok', message: 'Connected' };
+    }
+
+    try {
+        const twilioClient = twilio(config.twilioAccountSid, config.twilioAuthToken);
+        const account = await twilioClient.api.v2010.accounts(config.twilioAccountSid).fetch();
+        if (account.sid) {
+            status.twilio = { status: 'ok', message: `Verified (Account: ${account.friendlyName})` };
         }
-        await Setting.findOneAndUpdate(
-            { key: 'ai_prompt' },
-            { value: prompt },
-            { upsert: true, new: true } // Creates the document if it doesn't exist
-        );
-        res.status(200).json({ message: 'Prompt updated successfully' });
-    } catch (error) {
-        console.error('Error updating prompt:', error);
-        res.status(500).json({ error: 'Failed to update prompt' });
-    }
+    } catch (error) { status.twilio.message = error.message; }
+
+    try {
+        const genAI = new GoogleGenerativeAI(config.geminiApiKey);
+        const model = genAI.getGenerativeModel({ model: "gemini-pro" });
+        await model.countTokens("test");
+        status.gemini = { status: 'ok', message: 'Verified' };
+    } catch (error) { status.gemini.message = error.message; }
+
+    const isOk = Object.values(status).every(s => s.status === 'ok');
+    res.status(isOk ? 200 : 503).json(status);
 });
 
 module.exports = router;
