@@ -13,6 +13,7 @@ function setupWebSocket(server) {
         let chat;
         let callSid;
         let streamSid;
+        let aiVoice = 'Polly.Amy'; // Default voice
 
         ws.on('message', async (message) => {
             const msg = JSON.parse(message);
@@ -27,6 +28,7 @@ function setupWebSocket(server) {
                     console.log(`Starting conversation for call ${msg.start.callSid}`);
                     callSid = msg.start.callSid;
                     streamSid = msg.start.streamSid;
+                    aiVoice = msg.start.parameters.aiVoice || aiVoice; // Use voice from parameters
                     const model = genAI.getGenerativeModel({ model: "gemini-pro" });
                     chat = model.startChat({
                         history: [{ role: "user", parts: msg.start.parameters.initialPrompt }],
@@ -60,7 +62,7 @@ function setupWebSocket(server) {
                                         payload: Buffer.from(aiResponse, 'utf8').toString('base64'),
                                         'x-twilio-media': {
                                             'content-type': 'text/plain',
-                                            'voice': 'Polly.Amy'
+                                            'voice': aiVoice
                                         }
                                     }
                                 }));

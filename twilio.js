@@ -86,6 +86,7 @@ router.post('/handle-no-answer', async (req, res) => {
     stream.parameter({ name: 'encoding', value: 'audio/mulaw' });
     stream.parameter({ name: 'initialPrompt', value: initialPrompt });
     stream.parameter({ name: 'callSid', value: callSid });
+    stream.parameter({ name: 'aiVoice', value: voice }); // Pass the selected voice to the WebSocket
 
     res.type('text/xml');
     res.send(twiml.toString());
