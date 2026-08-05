@@ -1,10 +1,12 @@
+// api.js
 const express = require('express');
 const mongoose = require('mongoose');
 const twilio = require('twilio');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
-const Conversation = require('../models/Conversation');
-const Setting = require('../models/Setting');
-const config = require('../config');
+// Corrected require paths
+const Conversation = require('./models/Conversation');
+const Setting = require('./models/Setting');
+const config = require('./config');
 
 const router = express.Router();
 
@@ -17,10 +19,12 @@ router.get('/conversations/stats', async (req, res, next) => {
         const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
         const last_24h = await Conversation.countDocuments({ start_time: { $gte: twentyFourHoursAgo } });
 
+        // Use aggregation with a fallback for empty collections
         const avgDurationResult = await Conversation.aggregate([
             { $match: { duration_seconds: { $gt: 0 } } },
             { $group: { _id: null, avg_duration: { $avg: '$duration_seconds' } } }
         ]);
+
         const avg_duration_seconds = avgDurationResult.length > 0 ? avgDurationResult[0].avg_duration : 0;
         const mins = Math.floor(avg_duration_seconds / 60);
         const secs = Math.round(avg_duration_seconds % 60);
@@ -53,8 +57,8 @@ router.get('/conversations', async (req, res, next) => {
 
         const conversations = await Conversation.find(query)
             .sort({ start_time: -1 })
-            .skip(parseInt(offset))
-            .limit(parseInt(limit));
+            .skip(parseInt(offset, 10))
+            .limit(parseInt(limit, 10));
 
         const total = await Conversation.countDocuments(query);
 
@@ -115,14 +119,11 @@ router.delete('/settings/all', async (req, res, next) => {
     try {
         // Remove all dynamic settings from the database
         await Setting.deleteMany({});
-        // In a real app, you might want to clear a config cache here
         res.status(200).json({ message: 'All settings reset to defaults.' });
     } catch (error) {
         next(error);
     }
 });
-
-
 
 // GET /api/v1/health/status
 router.get('/health/status', async (req, res, next) => {
@@ -142,14 +143,18 @@ router.get('/health/status', async (req, res, next) => {
         if (account.sid) {
             status.twilio = { status: 'ok', message: `Verified (Account: ${account.friendlyName})` };
         }
-    } catch (error) { status.twilio.message = error.message; }
+    } catch (error) {
+        status.twilio.message = error.message;
+    }
 
     try {
         const genAI = new GoogleGenerativeAI(config.geminiApiKey);
-        const model = genAI.getGenerativeModel({ model: "gemini-pro" });
+        const model = genAI.getGenerativeModel({ model: config.geminiModel });
         await model.countTokens("test");
         status.gemini = { status: 'ok', message: 'Verified' };
-    } catch (error) { status.gemini.message = error.message; }
+    } catch (error) {
+        status.gemini.message = error.message;
+    }
 
     const isOk = Object.values(status).every(s => s.status === 'ok');
     res.status(isOk ? 200 : 503).json(status);

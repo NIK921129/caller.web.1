@@ -1,121 +1,208 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Settings - AI Call Assistant</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css">
-</head>
-<body>
-    <div class="container">
-        <header>
-            <h1>🤖 AI Call Assistant</h1>
-            <nav>
-                <a href="/">Dashboard</a>
-                <a href="/settings.html" class="active">Settings</a>
-                <a href="#" id="logout-btn">Logout</a>
-            </nav> 
-        </header>
+// frontend/settings.js
+import APIClient from './apiClient.js';
 
-        <main>
-            <div class="content-grid">
-                <section class="card settings-card">
-                    <div class="card__header">
-                        <h2>General Settings</h2>
-                        <p>Configure core application behavior.</p>
-                    </div>
-                    <div class="card__body">
-                        <div class="form-group">
-                            <label for="my-phone-number">Forwarding Phone Number</label>
-                            <p class="description">The personal number Twilio will forward calls to. Must be in E.164 format (e.g., +14155552671).</p>
-                            <input type="tel" id="my-phone-number" class="form-control" placeholder="+12345678900">
-                        </div>
-                        <div class="form-group">
-                            <label for="call-timeout">Call Timeout (seconds)</label>
-                            <p class="description">How long to ring your number before the AI takes over.</p>
-                            <input type="number" id="call-timeout" class="form-control" min="5" max="60" placeholder="10">
-                        </div>
-                    </div>
-                </section>
+const apiBaseUrl = window.location.origin;
+const api = new APIClient(`${apiBaseUrl}/api/v1`);
+const authApi = new APIClient(apiBaseUrl);
 
-                <section class="card settings-card">
-                    <div class="card__header">
-                        <h2>AI Configuration</h2>
-                        <p>Define the personality and instructions for your AI assistant.</p>
-                    </div>
-                    <div class="card__body">
-                        <div class="form-group">
-                            <label for="ai-model">AI Model</label>
-                            <p class="description">Select the Google Gemini model to use for conversations.</p>
-                            <select id="ai-model" class="form-control">
-                                <option value="gemini-pro">Gemini Pro</option>
-                                <!-- Add other Gemini models here if you have access and want to use them -->
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label for="ai-temperature">AI Temperature</label>
-                            <p class="description">Controls the randomness of AI responses. Lower values are more focused, higher values are more creative (0.0 - 1.0).</p>
-                            <input type="range" id="ai-temperature" class="form-control" min="0" max="1" step="0.1" value="0.7">
-                            <span id="ai-temperature-value" class="description">0.7</span>
-                        </div>
-                        <div class="form-group">
-                            <label for="ai-max-tokens">AI Max Response Tokens</label>
-                            <p class="description">Maximum number of tokens (words/parts) the AI will generate in a single response (1 - 2048).</p>
-                            <input type="number" id="ai-max-tokens" class="form-control" min="1" max="2048" value="200">
-                        </div>
+class SettingsPage {
+    constructor() {
+        // DOM Elements
+        this.aiModelSelect = document.getElementById('ai-model');
+        this.aiTemperatureInput = document.getElementById('ai-temperature');
+        this.aiTemperatureValueSpan = document.getElementById('ai-temperature-value');
+        this.promptTextarea = document.getElementById('ai-prompt');
+        this.greetingTextarea = document.getElementById('ai-greeting');
+        this.voiceSelect = document.getElementById('ai-voice');
+        this.myPhoneNumberInput = document.getElementById('my-phone-number');
+        this.callTimeoutInput = document.getElementById('call-timeout');
+        this.aiMaxTokensInput = document.getElementById('ai-max-tokens');
+        this.saveButton = document.getElementById('save-settings-btn');
+        this.resetButton = document.getElementById('reset-settings-btn');
+        this.statusMessage = document.getElementById('settings-status-message');
+        this.checkStatusBtn = document.getElementById('check-status-btn');
+        this.dbStatusEl = document.getElementById('status-database');
+        this.twilioStatusEl = document.getElementById('status-twilio');
+        this.geminiStatusEl = document.getElementById('status-gemini');
+        this.logoutBtn = document.getElementById('logout-btn');
 
-                        <div class="form-group">
-                            <label for="ai-greeting">Initial Greeting</label>
-                            <p class="description">The first thing the AI says when it answers the call.</p>
-                            <textarea id="ai-greeting" class="form-control" rows="3" placeholder="e.g., Hello, you've reached the AI assistant. Please state your name and the reason for your call after the beep."></textarea>
-                        </div>
-                        <div class="form-group">
-                            <label for="ai-voice">AI Voice</label>
-                            <p class="description">The voice your AI assistant will use to speak.</p>
-                            <select id="ai-voice" class="form-control">
-                                <option value="Polly.Amy">Amy (British English, Female)</option>
-                                <option value="Polly.Emma">Emma (British English, Female)</option>
-                                <option value="Polly.Brian">Brian (British English, Male)</option>
-                                <option value="Polly.Joanna">Joanna (US English, Female)</option>
-                                <option value="Polly.Matthew">Matthew (US English, Male)</option>
-                                <option value="Polly.Salli">Salli (US English, Female)</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label for="ai-prompt">System Prompt</label>
-                            <textarea id="ai-prompt" class="form-control" rows="10" placeholder="e.g., You are a friendly and professional assistant named Echo. Your goal is to take a message and find out the caller's name and reason for calling..."></textarea>
-                        </div>
-                    </div>
-                    <div class="card__footer">
-                        <p id="settings-status-message" class="status-message"></p>
-                        <button id="reset-settings-btn" class="btn">Reset to Defaults</button>
-                        <button id="save-settings-btn" class="btn btn-primary">Save All Settings</button>
-                    </div>
-                </section>
-    
-                <section class="card connectivity-card">
-                    <div class="card__header">
-                        <h2>Connectivity Status</h2>
-                        <p>Check the backend's connection to required services.</p>
-                    </div>
-                    <div class="card__body">
-                        <ul class="status-list">
-                            <li class="status-list__item"><span>Database (MongoDB)</span><span id="status-database" class="status-badge">--</span></li>
-                            <li class="status-list__item"><span>Telephony (Twilio)</span><span id="status-twilio" class="status-badge">--</span></li>
-                            <li class="status-list__item"><span>AI Provider (Gemini)</span><span id="status-gemini" class="status-badge">--</span></li>
-                        </ul>
-                    </div>
-                    <div class="card__footer">
-                        <button id="check-status-btn" class="btn">Check Status</button>
-                    </div>
-                </section>
-            </div>
-        </main>
-    </div>
-    <script type="module" src="settings.js"></script>
-</body>
+        this.init();
+    }
 
-</html>
+    init() {
+        this.loadSettings();
+        this.setupEventListeners();
+    }
+
+    setupEventListeners() {
+        this.saveButton.addEventListener('click', () => this.saveSettings());
+        this.resetButton.addEventListener('click', () => this.resetSettings());
+        this.checkStatusBtn.addEventListener('click', () => this.checkConnectivity());
+
+        this.aiTemperatureInput.addEventListener('input', (e) => {
+            this.aiTemperatureValueSpan.textContent = e.target.value;
+        });
+
+        this.logoutBtn.addEventListener('click', async (e) => {
+            e.preventDefault();
+            try {
+                await authApi.post('/auth/logout');
+                window.location.href = '/login.html';
+            } catch (error) {
+                console.error('Logout failed:', error);
+            }
+        });
+
+        // Enter key to save
+        document.addEventListener('keydown', (e) => {
+            if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+                e.preventDefault();
+                this.saveSettings();
+            }
+        });
+    }
+
+    async loadSettings() {
+        try {
+            const settings = await api.get('/settings');
+            
+            this.promptTextarea.value = settings.ai_prompt || '';
+            this.greetingTextarea.value = settings.ai_greeting || "Hello, you've reached the AI assistant. Please state your name and the reason for your call after the beep.";
+            this.voiceSelect.value = settings.ai_voice || 'Polly.Amy';
+            this.aiModelSelect.value = settings.ai_model || 'gemini-pro';
+            this.aiTemperatureInput.value = settings.ai_temperature ?? 0.7;
+            this.aiTemperatureValueSpan.textContent = this.aiTemperatureInput.value;
+            this.aiMaxTokensInput.value = settings.ai_max_tokens ?? 200;
+            this.myPhoneNumberInput.value = settings.my_phone_number || '';
+            this.callTimeoutInput.value = settings.call_timeout || '10';
+        } catch (error) {
+            console.error('Failed to load settings:', error);
+            this.showStatus('Error loading settings. Please refresh.', 'error');
+        }
+    }
+
+    async saveSettings() {
+        if (!confirm('Are you sure you want to save these settings?')) return;
+
+        const settingsToSave = {
+            ai_prompt: this.promptTextarea.value.trim(),
+            ai_greeting: this.greetingTextarea.value.trim(),
+            ai_voice: this.voiceSelect.value,
+            ai_model: this.aiModelSelect.value,
+            ai_temperature: parseFloat(this.aiTemperatureInput.value),
+            ai_max_tokens: parseInt(this.aiMaxTokensInput.value, 10),
+            my_phone_number: this.myPhoneNumberInput.value.trim(),
+            call_timeout: parseInt(this.callTimeoutInput.value, 10)
+        };
+
+        // Validate phone number
+        if (!/^\+[1-9]\d{1,14}$/.test(settingsToSave.my_phone_number)) {
+            this.showStatus('Please enter a valid phone number in E.164 format (e.g., +14155552671).', 'error');
+            return;
+        }
+
+        // Validate timeout
+        if (isNaN(settingsToSave.call_timeout) || settingsToSave.call_timeout < 5 || settingsToSave.call_timeout > 60) {
+            this.showStatus('Call Timeout must be between 5 and 60 seconds.', 'error');
+            return;
+        }
+
+        // Validate temperature
+        if (isNaN(settingsToSave.ai_temperature) || settingsToSave.ai_temperature < 0 || settingsToSave.ai_temperature > 1) {
+            this.showStatus('AI Temperature must be between 0.0 and 1.0.', 'error');
+            return;
+        }
+
+        // Validate max tokens
+        if (isNaN(settingsToSave.ai_max_tokens) || settingsToSave.ai_max_tokens < 1 || settingsToSave.ai_max_tokens > 2048) {
+            this.showStatus('AI Max Response Tokens must be between 1 and 2048.', 'error');
+            return;
+        }
+
+        this.saveButton.disabled = true;
+        this.saveButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+        this.clearStatus();
+
+        try {
+            await api.put('/settings', settingsToSave);
+            this.showStatus('Settings saved successfully!', 'success');
+        } catch (error) {
+            console.error('Failed to save settings:', error);
+            this.showStatus('Failed to save settings: ' + (error.message || 'Unknown error'), 'error');
+        } finally {
+            this.saveButton.disabled = false;
+            this.saveButton.innerHTML = '<i class="fas fa-save"></i> Save All Settings';
+        }
+    }
+
+    async resetSettings() {
+        if (!confirm('Are you sure you want to reset all settings to their default values? This cannot be undone.')) return;
+
+        this.resetButton.disabled = true;
+        this.saveButton.disabled = true;
+        this.resetButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Resetting...';
+        this.clearStatus();
+
+        try {
+            await api.delete('/settings/all');
+            this.showStatus('Settings reset to defaults successfully!', 'success');
+            await this.loadSettings();
+        } catch (error) {
+            console.error('Failed to reset settings:', error);
+            this.showStatus('Failed to reset settings.', 'error');
+        } finally {
+            this.resetButton.disabled = false;
+            this.saveButton.disabled = false;
+            this.resetButton.innerHTML = '<i class="fas fa-undo"></i> Reset Defaults';
+        }
+    }
+
+    async checkConnectivity() {
+        this.checkStatusBtn.disabled = true;
+        this.checkStatusBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Checking...';
+
+        const statusElements = {
+            database: this.dbStatusEl,
+            twilio: this.twilioStatusEl,
+            gemini: this.geminiStatusEl,
+        };
+
+        Object.values(statusElements).forEach(el => {
+            el.textContent = 'Checking...';
+            el.className = 'status-badge checking';
+        });
+
+        try {
+            const statuses = await api.get('/health/status');
+            for (const [service, data] of Object.entries(statuses)) {
+                if (statusElements[service]) {
+                    const statusClass = data.status === 'ok' ? 'status-ok' : 'status-error';
+                    statusElements[service].textContent = data.message;
+                    statusElements[service].className = `status-badge ${statusClass}`;
+                }
+            }
+        } catch (error) {
+            console.error('Failed to fetch connectivity status:', error);
+            Object.values(statusElements).forEach(el => {
+                el.textContent = 'Failed to get status';
+                el.className = 'status-badge status-error';
+            });
+        } finally {
+            this.checkStatusBtn.disabled = false;
+            this.checkStatusBtn.innerHTML = '<i class="fas fa-sync"></i> Check Status';
+        }
+    }
+
+    showStatus(message, type) {
+        this.statusMessage.textContent = message;
+        this.statusMessage.className = `status-message ${type}`;
+        setTimeout(() => this.clearStatus(), 5000);
+    }
+
+    clearStatus() {
+        this.statusMessage.textContent = '';
+        this.statusMessage.className = 'status-message';
+    }
+}
+
+document.addEventListener('DOMContentLoaded', () => new SettingsPage());
