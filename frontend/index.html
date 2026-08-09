@@ -1,0 +1,315 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>AI Call Assistant — Dashboard</title>
+    <meta name="description" content="AI call-forwarding assistant: answers calls, talks to callers, stores transcripts and analyses every conversation." />
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%93%9E%3C/text%3E%3C/svg%3E" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="./styles.css" />
+    <script src="./config.js"></script>
+  </head>
+  <body>
+    <!-- ============================ LOGIN ============================ -->
+    <section id="login-view" class="login-wrap">
+      <form class="login-card" id="login-form">
+        <div class="brand"><span class="dot"></span> AI Call Assistant</div>
+        <h1>Sign in</h1>
+        <p class="muted">Admin access to your call assistant control panel.</p>
+        <label>Username<input id="login-user" autocomplete="username" required /></label>
+        <label>Password<input id="login-pass" type="password" autocomplete="current-password" required /></label>
+        <details class="api-details">
+          <summary>Backend URL</summary>
+          <label>Render API base URL<input id="login-api" placeholder="https://your-backend.onrender.com" /></label>
+        </details>
+        <button class="btn primary block" type="submit">Sign in</button>
+        <div class="form-msg" id="login-msg"></div>
+      </form>
+    </section>
+
+    <!-- ============================ APP ============================ -->
+    <div id="app-view" class="app hidden">
+      <aside class="sidebar">
+        <div class="brand"><span class="dot"></span> Call<b>AI</b></div>
+        <nav>
+          <button class="nav-item active" data-tab="dashboard">Dashboard</button>
+          <button class="nav-item" data-tab="calls">Calls &amp; Transcripts</button>
+          <button class="nav-item" data-tab="ai">AI Prompting</button>
+          <button class="nav-item" data-tab="actions">Call &amp; SMS</button>
+          <button class="nav-item" data-tab="settings">Credentials</button>
+          <button class="nav-item" data-tab="deploy">Setup &amp; Webhooks</button>
+        </nav>
+        <div class="sidebar-foot">
+          <div id="health" class="health">checking…</div>
+          <button class="btn ghost block" id="logout">Sign out</button>
+        </div>
+      </aside>
+
+      <main class="main">
+        <!-- ---------- DASHBOARD ---------- -->
+        <section class="tab active" id="tab-dashboard">
+          <header class="page-head">
+            <div>
+              <h1>Dashboard</h1>
+              <p class="muted">Live overview of everything your assistant handled.</p>
+            </div>
+            <button class="btn" id="refresh-dash">Refresh</button>
+          </header>
+
+          <div class="stat-grid" id="stat-grid"></div>
+
+          <div class="grid-2">
+            <div class="card">
+              <h2>Calls — last 30 days</h2>
+              <div class="bars" id="chart-days"></div>
+            </div>
+            <div class="card">
+              <h2>Sentiment mix</h2>
+              <div id="chart-sentiment" class="legend"></div>
+              <h2 class="mt">Top intents</h2>
+              <ol id="top-intents" class="ranked"></ol>
+            </div>
+          </div>
+
+          <div class="card">
+            <h2>Ask AI about your calls</h2>
+            <p class="muted">e.g. "How many callers wanted a price quote this week?"</p>
+            <div class="row">
+              <input id="ask-input" placeholder="Ask a question about your recent calls…" />
+              <button class="btn primary" id="ask-btn">Ask</button>
+            </div>
+            <pre class="answer hidden" id="ask-answer"></pre>
+          </div>
+
+          <div class="card">
+            <h2>Recent calls</h2>
+            <div id="recent-list" class="list"></div>
+          </div>
+        </section>
+
+        <!-- ---------- CALLS ---------- -->
+        <section class="tab" id="tab-calls">
+          <header class="page-head">
+            <div>
+              <h1>Calls &amp; Transcripts</h1>
+              <p class="muted">Every conversation, stored and analysed.</p>
+            </div>
+            <div class="row">
+              <button class="btn" id="export-csv">Export CSV</button>
+              <button class="btn" id="reload-calls">Refresh</button>
+            </div>
+          </header>
+
+          <div class="filters card">
+            <input id="f-q" placeholder="Search transcript, name, number, intent…" />
+            <select id="f-sentiment">
+              <option value="">All sentiment</option>
+              <option value="positive">Positive</option>
+              <option value="neutral">Neutral</option>
+              <option value="negative">Negative</option>
+            </select>
+            <select id="f-handled">
+              <option value="">All handlers</option>
+              <option value="ai">AI answered</option>
+              <option value="forward">Forwarded</option>
+              <option value="voicemail">Voicemail</option>
+              <option value="blocked">Blocked</option>
+            </select>
+            <label class="check"><input type="checkbox" id="f-starred" /> Starred only</label>
+          </div>
+
+          <div class="split">
+            <div id="calls-list" class="list scroll"></div>
+            <div id="call-detail" class="card detail">
+              <p class="muted">Select a call to read the transcript and AI analysis.</p>
+            </div>
+          </div>
+        </section>
+
+        <!-- ---------- AI PROMPTING ---------- -->
+        <section class="tab" id="tab-ai">
+          <header class="page-head">
+            <div>
+              <h1>AI Prompting</h1>
+              <p class="muted">Control exactly how the assistant speaks and thinks.</p>
+            </div>
+            <button class="btn primary" data-save="ai">Save</button>
+          </header>
+
+          <div class="card">
+            <h2>Persona &amp; script</h2>
+            <label>System prompt<textarea rows="6" data-field="systemPrompt"></textarea></label>
+            <label>Greeting (first thing the caller hears)<textarea rows="2" data-field="greeting"></textarea></label>
+            <label>Fallback (when speech is not understood)<textarea rows="2" data-field="fallbackMessage"></textarea></label>
+            <label>Closing message<textarea rows="2" data-field="closingMessage"></textarea></label>
+            <label>Analysis prompt (used after the call)<textarea rows="3" data-field="analysisPrompt"></textarea></label>
+          </div>
+
+          <div class="grid-2">
+            <div class="card">
+              <h2>Model</h2>
+              <label>Model<select data-field="aiModel">
+                <option value="gemini-1.5-flash">gemini-1.5-flash (fast)</option>
+                <option value="gemini-1.5-pro">gemini-1.5-pro (smart)</option>
+                <option value="gemini-2.0-flash">gemini-2.0-flash</option>
+              </select></label>
+              <label>Temperature <span class="hint" id="temp-val"></span><input type="range" min="0" max="1" step="0.1" data-field="temperature" id="temp" /></label>
+              <label>Max reply tokens<input type="number" data-field="maxOutputTokens" /></label>
+              <label>Max conversation turns<input type="number" data-field="maxTurns" /></label>
+            </div>
+            <div class="card">
+              <h2>Voice</h2>
+              <label>Twilio voice<select data-field="voice">
+                <option value="Polly.Joanna">Polly.Joanna (US female)</option>
+                <option value="Polly.Matthew">Polly.Matthew (US male)</option>
+                <option value="Polly.Aditi">Polly.Aditi (Indian)</option>
+                <option value="Polly.Amy">Polly.Amy (UK female)</option>
+                <option value="alice">alice (classic)</option>
+              </select></label>
+              <label>Speech language<select data-field="language">
+                <option value="en-US">en-US</option>
+                <option value="en-IN">en-IN</option>
+                <option value="en-GB">en-GB</option>
+                <option value="hi-IN">hi-IN</option>
+              </select></label>
+              <label>Speech timeout<input data-field="speechTimeout" placeholder="auto or seconds" /></label>
+              <label class="check"><input type="checkbox" data-field="autoAnalyze" /> Auto-analyse every call with AI</label>
+            </div>
+          </div>
+
+          <div class="card">
+            <h2>Prompt template library</h2>
+            <div class="row">
+              <input id="tpl-name" placeholder="Template name (e.g. Clinic receptionist)" />
+              <button class="btn" id="tpl-save">Save current prompt as template</button>
+            </div>
+            <div id="tpl-list" class="list mt"></div>
+          </div>
+        </section>
+
+        <!-- ---------- ACTIONS ---------- -->
+        <section class="tab" id="tab-actions">
+          <header class="page-head">
+            <div>
+              <h1>Call &amp; SMS</h1>
+              <p class="muted">Let the AI place an outbound call, or send a text.</p>
+            </div>
+          </header>
+          <div class="grid-2">
+            <div class="card">
+              <h2>Outbound AI call</h2>
+              <label>Number to call<input id="out-to" placeholder="+919876543210" /></label>
+              <label>Opening line<textarea id="out-msg" rows="3" placeholder="Hi, this is the AI assistant calling about…"></textarea></label>
+              <button class="btn primary" id="out-call">Place call</button>
+              <div class="form-msg" id="out-msg-status"></div>
+            </div>
+            <div class="card">
+              <h2>Send SMS</h2>
+              <label>To<input id="sms-to" placeholder="+919876543210" /></label>
+              <label>Message<textarea id="sms-body" rows="3"></textarea></label>
+              <button class="btn primary" id="sms-send">Send SMS</button>
+              <div class="form-msg" id="sms-status"></div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ---------- SETTINGS ---------- -->
+        <section class="tab" id="tab-settings">
+          <header class="page-head">
+            <div>
+              <h1>Credentials &amp; Routing</h1>
+              <p class="muted">Everything is stored in your MongoDB and editable right here.</p>
+            </div>
+            <div class="row">
+              <button class="btn" id="test-creds">Test connections</button>
+              <button class="btn primary" data-save="settings">Save</button>
+            </div>
+          </header>
+
+          <div class="grid-2">
+            <div class="card">
+              <h2>Twilio</h2>
+              <label>Account SID<input data-field="twilioAccountSid" placeholder="ACxxxxxxxx" /></label>
+              <label>Auth Token<input data-field="twilioAuthToken" type="password" placeholder="leave blank to keep saved value" /></label>
+              <label>Twilio phone number<input data-field="twilioPhoneNumber" placeholder="+1234567890" /></label>
+              <label>Forward to (your real phone)<input data-field="forwardToNumber" placeholder="+919876543210" /></label>
+              <label>Backend public URL<input data-field="publicUrl" placeholder="https://your-backend.onrender.com" /></label>
+            </div>
+            <div class="card">
+              <h2>Google Gemini</h2>
+              <label>API key<input data-field="geminiApiKey" type="password" placeholder="leave blank to keep saved value" /></label>
+              <div id="creds-result" class="answer hidden"></div>
+            </div>
+          </div>
+
+          <div class="grid-2">
+            <div class="card">
+              <h2>Call routing</h2>
+              <label>Mode<select data-field="mode">
+                <option value="ai">AI answers every call</option>
+                <option value="forward">Forward straight to my phone</option>
+                <option value="ai_then_forward">AI first, then forward</option>
+              </select></label>
+              <label class="check"><input type="checkbox" data-field="recordCalls" /> Record calls</label>
+              <label class="check"><input type="checkbox" data-field="smsFollowUp" /> Send SMS follow-up after each call</label>
+              <label>Follow-up SMS text<textarea rows="2" data-field="smsFollowUpText"></textarea></label>
+            </div>
+            <div class="card">
+              <h2>Business hours</h2>
+              <label class="check"><input type="checkbox" data-field="businessHoursEnabled" /> Enable business hours</label>
+              <div class="row">
+                <label>Start<input data-field="businessHoursStart" placeholder="09:00" /></label>
+                <label>End<input data-field="businessHoursEnd" placeholder="18:00" /></label>
+                <label>TZ offset (min)<input type="number" data-field="timezoneOffsetMinutes" /></label>
+              </div>
+              <label>After-hours message<textarea rows="2" data-field="afterHoursMessage"></textarea></label>
+            </div>
+          </div>
+
+          <div class="grid-2">
+            <div class="card">
+              <h2>Blocklist</h2>
+              <p class="muted">One number per line. These calls are rejected.</p>
+              <textarea rows="5" data-list="blocklist"></textarea>
+            </div>
+            <div class="card">
+              <h2>VIP list</h2>
+              <p class="muted">One number per line. These calls forward to you instantly.</p>
+              <textarea rows="5" data-list="vipList"></textarea>
+            </div>
+          </div>
+        </section>
+
+        <!-- ---------- DEPLOY ---------- -->
+        <section class="tab" id="tab-deploy">
+          <header class="page-head">
+            <div>
+              <h1>Setup &amp; Webhooks</h1>
+              <p class="muted">Paste these URLs into your Twilio phone number configuration.</p>
+            </div>
+          </header>
+          <div class="card">
+            <h2>Twilio webhook URLs</h2>
+            <div id="webhooks" class="kv"></div>
+          </div>
+          <div class="card">
+            <h2>Deployment checklist</h2>
+            <ol class="steps">
+              <li><b>MongoDB Atlas</b> — create a free cluster, allow access from anywhere, copy the connection string.</li>
+              <li><b>Render</b> — new Web Service from the <code>backend/</code> folder. Build: <code>npm install</code>. Start: <code>npm start</code>. Add every variable from <code>backend/.env.example</code>.</li>
+              <li><b>Vercel</b> — new project, root directory <code>frontend/</code>, framework preset "Other". Set <code>API_BASE_URL</code> in <code>frontend/config.js</code> to your Render URL.</li>
+              <li><b>Twilio</b> — phone number → Voice → "A call comes in" = Webhook (POST) with the Voice URL above; set the status callback too.</li>
+              <li><b>Finish</b> — sign in here, open Credentials, paste your keys, hit Test connections.</li>
+            </ol>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <div id="toast" class="toast"></div>
+    <script src="./app.js"></script>
+  </body>
+</html>
