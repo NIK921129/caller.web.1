@@ -185,6 +185,7 @@ input[type="range"] { padding: 0; background: transparent; border: 0; }
 
 @media (max-width: 900px) {
   .app { grid-template-columns: 1fr; }
+  
   .sidebar { position: static; height: auto; }
   .sidebar nav { flex-direction: row; overflow: auto; }
   .split, .filters { grid-template-columns: 1fr; }
