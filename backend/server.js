@@ -17,13 +17,13 @@ const allowed = (process.env.FRONTEND_URL || '*')
   .filter(Boolean);
 
 app.use(
-  cors({
-    origin(origin, cb) {
-      if (!origin || allowed.includes('*') || allowed.includes(origin.replace(/\/+$/, ''))) return cb(null, true);
-      return cb(null, false);
-    },
+  cors((req, cb) => {
+    const origin = req.header('Origin');
+    const isAllowed = !origin || allowed.includes('*') || allowed.some((o) => origin.startsWith(o));
+    cb(null, { origin: isAllowed });
   })
 );
+
 app.use(express.json({ limit: '1mb' }));
 app.use(express.urlencoded({ extended: false }));
 
