@@ -29,6 +29,12 @@ const SettingsSchema = new mongoose.Schema(
     forwardToNumber: { type: String, default: '' }, // your real phone
     publicUrl: { type: String, default: '' }, // https://your-app.onrender.com
 
+    // --- Exotel credentials ---
+    exotelAccountSid: { type: String, default: '' },
+    exotelApiToken: { type: String, default: '' },
+    exotelApiSubdomain: { type: String, default: '' },
+    exotelCallerId: { type: String, default: '' },
+
     // --- AI credentials / prompting ---
     geminiApiKey: { type: String, default: '' },
     aiModel: { type: String, default: 'gemini-1.5-flash' },
@@ -64,7 +70,8 @@ const SettingsSchema = new mongoose.Schema(
     maxTurns: { type: Number, default: 12 },
 
     // --- Behaviour ---
-    mode: { type: String, enum: ['ai', 'forward', 'ai_then_forward'], default: 'ai' },
+    provider: { type: String, enum: ['twilio', 'exotel'], default: 'twilio' },
+    mode: { type: String, enum: ['ai', 'forward', 'ai_then_forward'], default: 'ai' }, // Twilio-specific for now
     recordCalls: { type: Boolean, default: false },
     autoAnalyze: { type: Boolean, default: true },
     smsFollowUp: { type: Boolean, default: false },
@@ -165,6 +172,10 @@ async function getSettings() {
       forwardToNumber: process.env.MY_PHONE_NUMBER || '',
       geminiApiKey: process.env.GEMINI_API_KEY || '',
       publicUrl: process.env.PUBLIC_URL || '',
+      exotelAccountSid: process.env.EXOTEL_ACCOUNT_SID || '',
+      exotelApiToken: process.env.EXOTEL_API_TOKEN || '',
+      exotelApiSubdomain: process.env.EXOTEL_API_SUBDOMAIN || '',
+      exotelCallerId: process.env.EXOTEL_CALLER_ID || '',
     });
   }
   return s;

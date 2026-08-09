@@ -239,6 +239,13 @@
               <label>Backend public URL<input data-field="publicUrl" placeholder="https://your-backend.onrender.com" /></label>
             </div>
             <div class="card">
+              <h2>Exotel</h2>
+              <label>Account SID<input data-field="exotelAccountSid" placeholder="your-company" /></label>
+              <label>API Token<input data-field="exotelApiToken" type="password" placeholder="leave blank to keep saved value" /></label>
+              <label>API Subdomain<input data-field="exotelApiSubdomain" placeholder="api.in.exotel.com" /></label>
+              <label>Exotel Caller ID (ExoPhone)<input data-field="exotelCallerId" placeholder="0123456789" /></label>
+            </div>
+            <div class="card">
               <h2>Google Gemini</h2>
               <label>API key<input data-field="geminiApiKey" type="password" placeholder="leave blank to keep saved value" /></label>
               <div id="creds-result" class="answer hidden"></div>
@@ -248,6 +255,10 @@
           <div class="grid-2">
             <div class="card">
               <h2>Call routing</h2>
+              <label>Telephony provider<select data-field="provider">
+                <option value="twilio">Twilio</option>
+                <option value="exotel">Exotel</option>
+              </select></label>
               <label>Mode<select data-field="mode">
                 <option value="ai">AI answers every call</option>
                 <option value="forward">Forward straight to my phone</option>

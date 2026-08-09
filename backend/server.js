@@ -67,6 +67,7 @@ app.get('/api/health', async (_req, res) => {
     configured: {
       twilio: Boolean(s && s.twilioAccountSid && s.twilioAuthToken && s.twilioPhoneNumber),
       gemini: Boolean(s && s.geminiApiKey),
+      exotel: Boolean(s && s.exotelAccountSid && s.exotelApiToken && s.exotelApiSubdomain),
       forwardNumber: Boolean(s && s.forwardToNumber),
     },
     time: new Date().toISOString(),
@@ -75,7 +76,7 @@ app.get('/api/health', async (_req, res) => {
 
 /* ------------------------------ settings ------------------------------ */
 
-const SECRET_FIELDS = ['twilioAuthToken', 'geminiApiKey'];
+const SECRET_FIELDS = ['twilioAuthToken', 'geminiApiKey', 'exotelApiToken'];
 
 function maskSettings(doc) {
   const o = doc.toObject ? doc.toObject() : { ...doc };
@@ -107,12 +108,22 @@ app.put('/api/settings', auth, async (req, res) => {
 
 app.post('/api/settings/test', auth, async (_req, res) => {
   const s = await getSettings();
-  const out = { twilio: null, gemini: null };
+  const out = { twilio: null, exotel: null, gemini: null };
   try {
     const acc = await twilioClient(s).api.v2010.accounts(s.twilioAccountSid).fetch();
     out.twilio = { ok: true, friendlyName: acc.friendlyName, status: acc.status };
   } catch (e) {
     out.twilio = { ok: false, error: e.message };
+  }
+  try {
+    const { exotelAccountSid, exotelApiToken, exotelApiSubdomain } = s;
+    if (!exotelAccountSid || !exotelApiToken || !exotelApiSubdomain) throw new Error('Missing credentials');
+    const url = `https://${exotelApiSubdomain}.exotel.com/v1/Accounts/${exotelAccountSid}`;
+    const authHeader = `Basic ${Buffer.from(`${exotelAccountSid}:${exotelApiToken}`).toString('base64')}`;
+    const exotelRes = await fetch(url, { headers: { Authorization: authHeader } }).then((r) => r.json());
+    out.exotel = { ok: true, friendlyName: exotelRes.Account.Name, status: exotelRes.Account.Status };
+  } catch (e) {
+    out.exotel = { ok: false, error: e.message };
   }
   try {
     out.gemini = { ok: true, reply: await testAi(s) };

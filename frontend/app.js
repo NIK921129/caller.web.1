@@ -147,6 +147,7 @@ $('#test-creds').addEventListener('click', async () => {
     const r = await api('/api/settings/test', { method: 'POST' });
     box.textContent =
       `Twilio: ${r.twilio.ok ? `OK — ${r.twilio.friendlyName} (${r.twilio.status})` : `FAILED — ${r.twilio.error}`}\n` +
+      `Exotel: ${r.exotel.ok ? `OK — ${r.exotel.friendlyName} (${r.exotel.status})` : `FAILED — ${r.exotel.error}`}\n` +
       `Gemini: ${r.gemini.ok ? `OK — replied "${r.gemini.reply}"` : `FAILED — ${r.gemini.error}`}`;
   } catch (e) {
     box.textContent = e.message;
